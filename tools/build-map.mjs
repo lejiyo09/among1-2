@@ -83,6 +83,8 @@ function fillShape(shape, value) {
   for (let gy = 0; gy < GH; gy++) {
     for (let gx = 0; gx < GW; gx++) {
       const cx = gx * CELL + CELL / 2, cy = gy * CELL + CELL / 2;
+      // 가구는 벽을 덮어쓰지 않는다 (벽은 시야도 막아야 한다)
+      if (value === 2 && grid[gy * GW + gx] === 1) continue;
       if (inside(shape, cx, cy)) grid[gy * GW + gx] = value;
     }
   }

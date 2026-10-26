@@ -34,7 +34,8 @@ const sab = async (p) => (await state(p)).sabotage?.active;
     const idx = sw.findIndex((on) => !on);
     if (idx < 0) break;
     await X.click(`.task-stage button >> nth=${idx}`);
-    await X.waitForTimeout(300);
+    // 서버가 바뀐 스위치 상태를 보내 줄 때까지 기다린다 (고정 시간 대기는 느린 환경에서 같은 스위치를 두 번 누르게 된다)
+    await X.waitForFunction((i) => { const a = window.__game.store.state.sabotage.active; return !a || a.switches[i]; }, idx, { timeout: 5000 });
   }
   await X.waitForFunction(() => !window.__game.store.state.sabotage.active, null, { timeout: 5000 });
   log('lights fixed via UI');
@@ -57,9 +58,10 @@ const sab = async (p) => (await state(p)).sabotage?.active;
     log(P.pname, 'panels', await P.evaluate(() => [...document.querySelectorAll('.task-panel h3')].map((e) => e.textContent)));
     setTimeout(async () => { try { log(P.pname, 'mut', JSON.stringify(await P.evaluate(() => window.__mut.slice(0, 8)))); } catch {} }, 4000);
     const code = (await sab(P)).code;
-    for (const d of code) await P.click(`.task-stage button:text-is("${d}")`);
+    // 느린 환경에서 렌더링 중인 캔버스 때문에 '안정 상태' 대기가 끝나지 않는 일이 있어 force 클릭 (핸들러는 그대로 실행된다)
+    for (const d of code) await P.click(`.task-stage button:text-is("${d}")`, { force: true });
     if (P === X) await P.screenshot({ path: `${SHOTS}/43-o2-keypad.png` });
-    await P.click('.task-stage button:text-is("✓")');
+    await P.click('.task-stage button:text-is("✓")', { force: true });
     await P.waitForTimeout(500);
   }
   await X.waitForFunction(() => !window.__game.store.state.sabotage.active, null, { timeout: 5000 });

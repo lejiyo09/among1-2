@@ -18,7 +18,14 @@
 "WeaponGun": "gun0001",
 "bulb": "bulb-shield_bulb0001",
 "PipeLights": "Mainframe-weaponmainframe0001",
-"MedScanner": "med-scanner",
+"MedScanner": "MedPlatform",
 "EmergencyConsole": "EmergencyButton",
-"SurvCamera": "camera_off"
+"SurvCamera": "camera_off",
+"MedBayConsole": "medTerminal",
+"map_surveillance": "security_TVs0001",
+"map_ComsChairs": "admin_chairs",
+"comms_left_tv": "comms_tvs",
+"comms_right_tv": "comms_tvs",
+"StabilizeSteeringConsole": "panel_nav",
+"ChartCourseConsole": "Panel_pathing"
 }

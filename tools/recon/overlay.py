@@ -15,6 +15,26 @@ for _n,_l in idx.items():
         k=(_s['tex'],_s['rect']['m_X'],_s['rect']['m_Y'],_s['rect']['m_Width'])
         if k in _seen: continue
         _seen.add(k); BYTEX.setdefault(_s['tex'],[]).append(_s)
+
+import base64,struct
+SPR=os.environ.get('AU_ASSETS','../refs/itsssskye_amongus-assets/Assets')+'/Sprite/'
+def mesh_mask(name,s,size):
+    """원작 스프라이트 메시(꼭짓점 + 삼각형)로 잘라 낸다. 사각형 영역에 끼어 든 옆 스프라이트 조각을 없앤다"""
+    p=SPR+name+'.json'
+    if not os.path.exists(p): return None
+    d=json.load(open(p)); rd=d['m_RD']; vd=rd['m_VertexData']
+    n=vd['m_VertexCount']; raw=base64.b64decode(vd['m_Data'] or '')
+    ib=base64.b64decode(rd['m_IndexBuffer'] or '')
+    if n<3 or len(raw)<n*12 or len(ib)<6: return None
+    pos=[struct.unpack_from('<3f',raw,i*12) for i in range(n)]
+    idxs=struct.unpack('<%dH'%(len(ib)//2),ib)
+    w,h=size; ppu=d.get('m_PixelsToUnits') or 100; pv=d['m_Pivot']
+    pts=[(x*ppu+pv['m_X']*w, h-(y*ppu+pv['m_Y']*h)) for x,y,_ in pos]
+    from PIL import ImageDraw
+    m=Image.new('L',size,0); dr=ImageDraw.Draw(m)
+    for i in range(0,len(idxs)-2,3):
+        dr.polygon([pts[idxs[i]],pts[idxs[i+1]],pts[idxs[i+2]]],fill=255)
+    return m
 def tex(f):
     if f not in cache: cache[f]=Image.open(T+f).convert('RGBA')
     return cache[f]
@@ -30,6 +50,12 @@ def sprite_img(name):
     im=tex(f); H=im.size[1]; r=s['rect']
     box=(int(r['m_X']),int(H-r['m_Y']-r['m_Height']),int(round(r['m_X']+r['m_Width'])),int(round(H-r['m_Y'])))
     out=im.crop(box)
+    m=mesh_mask(name,s,out.size)
+    if m is not None:
+        out=out.copy(); a=out.split()[3]
+        from PIL import ImageChops
+        out.putalpha(ImageChops.multiply(a,m))
+        return out,s
     # 타이트 메시 스프라이트: 사각형 안에 다른 스프라이트가 끼어 있으면 지운다
     area=r['m_Width']*r['m_Height']
     if area>200*200:
@@ -62,6 +88,7 @@ OX,OY=int(os.environ.get('PADX','400')),int(os.environ.get('PADY','200'))
 W,H=3587+OX*2,2064+OY*2
 canvas=Image.new('RGBA',(W,H),(0,0,0,0))
 items.sort(key=lambda t:(-t[0]['z'], t[0]['depth']))
+BOXES=[]
 for n,im,s in items:
     ppu=s['ppu'] or 100
     sw=max(1,int(im.size[0]*abs(n['sx'])*K*100/ppu)); sh=max(1,int(im.size[1]*abs(n['sy'])*K*100/ppu))
@@ -73,6 +100,10 @@ for n,im,s in items:
     room=n['path'].split('/')[2] if n['path'].count('/')>=2 else ''
     dx,dy=ROOMOFF.get(room,[0,0])
     px=AX*n['x']+BX+OX+dx; py=AY*n['y']+BY+OY+dy
-    canvas.alpha_composite(img,(int(px-piv['m_X']*img.size[0]),int(py-(1-piv['m_Y'])*img.size[1])))
+    ox_,oy_=int(px-piv['m_X']*img.size[0]),int(py-(1-piv['m_Y'])*img.size[1])
+    canvas.alpha_composite(img,(ox_,oy_))
+    bb=img.getbbox()
+    if bb: BOXES.append((n['path'],ox_+bb[0]-OX,oy_+bb[1]-OY,ox_+bb[2]-OX,oy_+bb[3]-OY))
 canvas.save(sys.argv[3])
+if os.environ.get('BBOX'): json.dump(BOXES,open(os.environ['BBOX'],'w'),indent=0)
 print('items',len(items),'canvas',W,H,'pad',OX,OY)

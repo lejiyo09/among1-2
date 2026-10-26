@@ -30,7 +30,9 @@ ALIAS=alias_mira.json python3 render.py MiraShip.glb texmap_mira.json mira_full.
 
 - 위치: 원작 `SkeldShip.glb` 노드 위치를 벤트 14곳 + 비상 버튼으로 최소제곱 맞춘 변환으로 옮김 (`X = 98.9u + 1977.9`, `Y = -94.5v + 609.7`, 평균 오차 약 20px)
 - 방별 미세 보정: `roomoff_skeld.json`, 애니메이션 노드 → 첫 프레임 스프라이트: `alias_skeld.json`
-- 그린 것: 상·하부 엔진 본체와 난간, 원자로 노심·받침·배관·전선, 보안실 서버, 의무실 스캐너, 산소 탱크, 관리실 지도 홀로그램·화면, 비상 버튼, 복도 감시 카메라, 선체 바깥 추진기·무기 포신·방어막 (뒤 레이어)
+- 스프라이트는 원작 메시(Sprite JSON 의 m_RD 꼭짓점·삼각형)로 잘라 낸다. 사각형으로 자르면 아틀라스에 촘촘히 붙은 옆 스프라이트 조각이 딸려 온다
+- 원작 방 스크린샷(oskarkraak/Among-Us-Maps)과 방마다 나란히 비교해 빠진 것을 찾았다
+- 그린 것: 상·하부 엔진 본체와 난간, 원자로 노심·받침·배관·전선, 보안실 서버, 의무실 스캐너, 산소 탱크, 관리실 지도 홀로그램·화면·콘솔 의자, 보안실 CCTV 책상, 의무실 컴퓨터, 항해실 의자·조종/항로 콘솔, 통신실 양옆 모니터 책상·아래 책상과 의자, 전기실 배전반·전선, 방어막실 전구·난간, 무기실 배관·난간, 비상 버튼, 복도 감시 카메라, 선체 바깥 추진기·무기 포신·방어막 (뒤 레이어)
 
 ```sh
 ROOMOFF=roomoff_skeld.json ALIAS=alias_skeld.json python3 overlay.py SkeldShip.glb texmap_skeld.json front.png "$(cat skeld_front_nodes.txt)"

@@ -44,6 +44,14 @@ export const obstacles = [
   { poly: [[2575, 1395], [2700, 1395], [2700, 1470], [2620, 1545], [2575, 1545]] },
   { rect: [2838, 1488, 2975, 1722] },
   { rect: [2575, 1662, 2725, 1758] },
+  // 원작 오브젝트 레이어에 새로 그린 가구 (tools/recon/overlay.py 의 그림 범위)
+  { rect: [1134, 1300, 1339, 1428] },                 // 전기실 배전반
+  { rect: [832, 768, 972, 830] }, { rect: [784, 804, 830, 903] }, // 보안실 CCTV 책상, 서버 랙
+  { rect: [1429, 895, 1513, 994] },                   // 의무실 컴퓨터
+  { rect: [2500, 770, 2568, 849] },                   // 산소 탱크
+  { rect: [2100, 1840, 2151, 1930] }, { rect: [2469, 1840, 2520, 1930] }, // 통신실 양옆 모니터 책상
+  { rect: [2218, 1935, 2419, 1988] }, { ellipse: [2300, 1915, 30, 22] },  // 통신실 아래 책상과 의자
+  { rect: [3489, 912, 3556, 1052] }, { rect: [3440, 832, 3505, 895] },     // 항해실 조종·항로 콘솔
   // 항해실 콘솔 2개
   { rect: [3312, 885, 3398, 932] }, { rect: [3312, 1035, 3398, 1078] },
 ];
@@ -58,7 +66,7 @@ export const openings = [];
  */
 export const LAYERS = [
   { image: 'assets/map/skeld-hull.webp', x: -315, y: 390, depth: 'back' },
-  { image: 'assets/map/skeld-objects.webp', x: 9, y: 417, depth: 'front' },
+  { image: 'assets/map/skeld-objects.webp', x: 9, y: 305, depth: 'front' },
 ];
 
 const task = (name, taskType, x, y, extra = {}) => ({ name, type: 'task', x, y, props: { taskType, room: extra.room ?? '', ...extra.props } });
@@ -132,7 +140,7 @@ export const objects = {
     { name: 'AdminVent', type: 'vent', x: 2190, y: 1400, props: { links: 'CafeVent,BigYVent' } },
     { name: 'CafeVent', type: 'vent', x: 2300, y: 610, props: { links: 'AdminVent,BigYVent' } },
     { name: 'BigYVent', type: 'vent', x: 2775, y: 1100, props: { links: 'AdminVent,CafeVent' } },
-    { name: 'ElecVent', type: 'vent', x: 1180, y: 1310, props: { links: 'MedVent,SecurityVent' } },
+    { name: 'ElecVent', type: 'vent', x: 1175, y: 1255, props: { links: 'MedVent,SecurityVent' } },
     { name: 'MedVent', type: 'vent', x: 1090, y: 925, props: { links: 'ElecVent,SecurityVent' } },
     { name: 'SecurityVent', type: 'vent', x: 945, y: 1140, props: { links: 'ElecVent,MedVent' } },
     { name: 'UpperEngineVent', type: 'vent', x: 690, y: 400, props: { links: 'UpperReactorVent' } },
