@@ -62,11 +62,13 @@ export function createPlayer({ name, color, conn, token, now }) {
 
 export class Room {
   /**
-   * @param {{code:string, maps?:Record<string,any>, map?:any, now?:()=>number, minPlayers?:number, onEmpty?:(room:Room)=>void, onPlayerRemoved?:(p:Player)=>void}} opts
+   * @param {{code:string, maps?:Record<string,any>, map?:any, now?:()=>number, minPlayers?:number, practice?:boolean, onEmpty?:(room:Room)=>void, onPlayerRemoved?:(p:Player)=>void}} opts
    * maps: 맵 id → 맵 데이터. kind 가 'lobby' 인 맵은 대기실, 나머지는 게임 맵. (map 하나만 주면 대기실도 그 맵을 쓴다)
+   * practice: 원작 "자유 플레이"처럼 혼자 하는 연습 방. 다른 사람은 들어올 수 없고, 더미 크루원이 서 있으며, 승패로 끝나지 않는다
    */
-  constructor({ code, maps, map, now = Date.now, minPlayers = MIN_PLAYERS, onEmpty = () => {}, onPlayerRemoved = () => {} }) {
+  constructor({ code, maps, map, now = Date.now, minPlayers = MIN_PLAYERS, practice = false, onEmpty = () => {}, onPlayerRemoved = () => {} }) {
     this.code = code;
+    this.practice = practice;
     this.maps = maps ?? { [map.id ?? 'skeld']: map };
     /** 맵마다 충돌 세계(닫힌 문 상태 포함)를 따로 둔다 */
     this.worlds = new Map(Object.entries(this.maps).map(([id, m]) => [id, new CollisionWorld(m)]));
@@ -80,6 +82,7 @@ export class Room {
     this.players = new Map();
     this.hostId = null;
     this.settings = { ...DEFAULT_SETTINGS, map: this.gameMapIds.includes(DEFAULT_SETTINGS.map) ? DEFAULT_SETTINGS.map : this.gameMapIds[0] };
+    if (practice) this.settings.practiceRole = ROLES.CREWMATE; // 연습 모드에서 해 볼 역할
     this.phase = PHASES.LOBBY;
     this.phaseEndsAt = 0;
     this.gameId = 0;
@@ -162,7 +165,7 @@ export class Room {
   addPlayer({ name, color, conn, token }) {
     if (this.phase !== PHASES.LOBBY) return { error: ERR.GAME_IN_PROGRESS };
     const active = [...this.players.values()].filter((p) => !p.removed);
-    if (active.length >= MAX_PLAYERS) return { error: ERR.ROOM_FULL };
+    if (active.length >= (this.practice ? 1 : MAX_PLAYERS)) return { error: ERR.ROOM_FULL };
     const p = createPlayer({ name, color: this.freeColor(color), conn, token, now: this.now() });
     if (p.color < 0) return { error: ERR.ROOM_FULL };
     const s = this.spawnPoint(active.length);
@@ -238,7 +241,7 @@ export class Room {
   }
 
   isEmpty() {
-    return ![...this.players.values()].some((p) => !p.removed);
+    return ![...this.players.values()].some((p) => !p.removed && !p.dummy);
   }
 
   close() {
@@ -266,6 +269,7 @@ export class Room {
       case 'setSettings': return this.onSetSettings(p, msg.settings);
       case 'ready': return this.onReady(p, msg.ready);
       case 'start': return this.onStart(p);
+      case 'endPractice': return this.onEndPractice(p);
       case 'kick': return this.onKick(p, msg.playerId);
       case 'taskStart': return this.onTaskStart(p, msg.taskId);
       case 'taskComplete': return this.onTaskComplete(p, msg.taskId, msg.answer);
@@ -334,10 +338,11 @@ export class Room {
     if (p.id !== this.hostId) return ERR.NOT_HOST;
     const next = { ...this.settings };
     for (const [key, value] of Object.entries(incoming)) {
-      if (!(key in DEFAULT_SETTINGS)) continue;
+      if (!(key in DEFAULT_SETTINGS) && key !== 'practiceRole') continue;
       const def = DEFAULT_SETTINGS[key];
       if (key === 'killDistance') { if (value in KILL_DISTANCES) next[key] = value; continue; }
       if (key === 'map') { if (this.gameMapIds.includes(value)) next[key] = value; continue; }
+      if (key === 'practiceRole') { if (this.practice && (value === ROLES.CREWMATE || value === ROLES.IMPOSTOR)) next[key] = value; continue; }
       if (key === 'taskBarUpdates') { if (['always', 'meetings', 'never'].includes(value)) next[key] = value; continue; }
       if (typeof def === 'boolean') { if (typeof value === 'boolean') next[key] = value; continue; }
       if (typeof value !== 'number' || !Number.isFinite(value)) continue;
@@ -369,6 +374,30 @@ export class Room {
     return null;
   }
 
+  /** 연습 모드 더미: 원작 자유 플레이처럼 맵 곳곳에 가만히 서 있는 크루원 (맵의 dummy 지점, 없으면 회의 시작 위치) */
+  addDummies() {
+    const map = this.maps[this.settings.map];
+    const spots = map.dummySpawn?.length ? map.dummySpawn : map.spawn.slice(1, 10);
+    spots.forEach((s, i) => {
+      const color = this.freeColor(i + 1);
+      if (color < 0) return;
+      const d = createPlayer({ name: `더미 ${i + 1}`, color, conn: null, token: null, now: this.now() });
+      Object.assign(d, { dummy: true, ready: true, x: s.x, y: s.y, facing: i % 2 ? -1 : 1 });
+      this.players.set(d.id, d);
+    });
+  }
+
+  removeDummies() {
+    for (const p of [...this.players.values()]) if (p.dummy) this.players.delete(p.id);
+  }
+
+  onEndPractice(p) {
+    if (!this.practice) return ERR.NOT_ALLOWED;
+    if (this.phase === PHASES.LOBBY) return ERR.WRONG_PHASE;
+    this.backToLobby();
+    return null;
+  }
+
   onStart(p) {
     if (this.phase !== PHASES.LOBBY) return ERR.WRONG_PHASE;
     if (p.id !== this.hostId) return ERR.NOT_HOST;
@@ -381,9 +410,13 @@ export class Room {
 
   startGame() {
     const now = this.now();
+    if (this.practice) this.addDummies();
     const list = [...this.players.values()];
     this.gameId++;
-    const roles = assignRoles(list.map((o) => o.id), this.settings.impostors);
+    // 연습 모드: 사람은 고른 역할, 더미는 모두 승무원
+    const roles = this.practice
+      ? new Map(list.map((o) => [o.id, o.dummy ? ROLES.CREWMATE : this.settings.practiceRole]))
+      : assignRoles(list.map((o) => o.id), this.settings.impostors);
     const assign = createTaskAssigner(this.maps[this.settings.map], this.settings);
     this.bodies.clear();
     this.meeting = null;
@@ -395,7 +428,7 @@ export class Room {
       o.alive = true;
       o.removed = false;
       o.deathKnown = false;
-      o.tasks = assign(o.id); // 임포스터도 "가짜 미션" 목록을 받는다 (원작과 동일, 완료 불가)
+      o.tasks = o.dummy ? [] : assign(o.id); // 임포스터도 "가짜 미션" 목록을 받는다 (원작과 동일, 완료 불가)
       o.activeTask = null;
       o.scanning = false;
       o.inVent = null;
@@ -405,7 +438,7 @@ export class Room {
     this.emergencyReadyAt = now + this.settings.emergencyCooldown * 1000;
     this.setPhase(PHASES.STARTING, TIMINGS.roleRevealMs); // 이 시점부터 this.map 은 게임 맵
     for (const d of this.map.doors) this.world.setDoorClosed(d.id, false);
-    this.placeAtSpawns(list, true);
+    this.placeAtSpawns(list.filter((o) => !o.dummy), true);
     for (const o of list) {
       const team = o.role === ROLES.IMPOSTOR ? list.filter((x) => x.role === ROLES.IMPOSTOR).map((x) => x.id) : [o.id];
       this.send(o, { t: 'fx', kind: 'roleReveal', role: o.role, team, impostorCount: [...roles.values()].filter((r) => r === ROLES.IMPOSTOR).length });
@@ -667,6 +700,7 @@ export class Room {
 
   // ---------------------------------------------------------------- 승패
   checkWinNow() {
+    if (this.practice) return; // 연습 모드는 승패로 끝나지 않는다 (원작 자유 플레이)
     if (!this.inGamePhase() || this.phase === PHASES.RESULT || this.phase === PHASES.STARTING) return;
     const win = checkWin(this.inGamePlayers, this.taskProgress());
     if (win) this.endGame(win.winner, win.reason);
@@ -685,6 +719,7 @@ export class Room {
   }
 
   backToLobby() {
+    this.removeDummies();
     for (const p of [...this.players.values()]) {
       if (p.removed || !p.connected) { this.players.delete(p.id); this.onPlayerRemoved(p); continue; }
       Object.assign(p, {
@@ -711,10 +746,14 @@ export class Room {
     if (this.phaseEndsAt && now >= this.phaseEndsAt) {
       switch (this.phase) {
         case PHASES.STARTING: this.setPhase(PHASES.PLAYING); break;
-        case PHASES.DISCUSSION: this.setPhase(PHASES.VOTING, this.settings.votingTime * 1000); break;
+        case PHASES.DISCUSSION:
+          this.setPhase(PHASES.VOTING, this.settings.votingTime * 1000);
+          // 연습 모드 더미는 원작처럼 투표를 건너뛴다
+          for (const o of this.eligibleVoters()) if (o.dummy) this.meeting.votes.set(o.id, 'skip');
+          break;
         case PHASES.VOTING: this.endVoting(); break;
         case PHASES.RESULT: {
-          const win = checkWin(this.inGamePlayers, this.taskProgress());
+          const win = this.practice ? null : checkWin(this.inGamePlayers, this.taskProgress());
           if (win) this.endGame(win.winner, win.reason); else this.resumePlaying();
           break;
         }
@@ -778,7 +817,7 @@ export class Room {
 
   broadcastSnapshots(now) {
     for (const viewer of this.players.values()) {
-      if (!viewer.connected || viewer.removed) continue;
+      if (!viewer.connected || viewer.removed || viewer.dummy) continue;
       const v = viewer.view;
       const changed = [];
       const visible = new Set();
@@ -831,14 +870,14 @@ export class Room {
     const ended = this.phase === PHASES.ENDED;
     const players = [...this.players.values()].map((o) => ({
       id: o.id, name: o.name, color: o.color,
-      host: o.id === this.hostId, ready: o.ready, connected: o.connected, left: o.removed,
+      host: o.id === this.hostId, ready: o.ready, connected: o.connected, left: o.removed, dummy: o.dummy || undefined,
       inGame: o.inGame,
       dead: o.inGame && !o.alive && (o.deathKnown || ghostView || o.id === p.id || ended),
     }));
     const msg = {
       t: 'state', code: this.code, now, gameId: this.gameId,
       phase: this.phase, endsAt: this.phaseEndsAt, hostId: this.hostId, mapId: this.mapId, maps: this.gameMapIds,
-      settings: this.settings, minPlayers: this.minPlayers,
+      settings: this.settings, minPlayers: this.minPlayers, practice: this.practice || undefined,
       players,
     };
     if (p.inGame) {

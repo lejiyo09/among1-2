@@ -26,6 +26,8 @@ export class Menu {
     this.colorGrid = h('div', { class: 'color-grid' });
     this.createBtn = h('button', { class: 'btn primary', onclick: () => this.create() }, '방 만들기');
     this.joinBtn = h('button', { class: 'btn blue', onclick: () => this.join() }, '코드로 참가');
+    // 원작 "자유 플레이": 혼자서 더미 크루원과 맵·미션·임포스터 조작을 연습
+    this.practiceBtn = h('button', { class: 'btn', onclick: () => this.create(true) }, '혼자 연습하기 (자유 플레이)');
     this.codeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') this.join(); });
 
     this.el = h('div', { class: 'menu' },
@@ -38,6 +40,7 @@ export class Menu {
         this.colorGrid,
         this.createBtn,
         h('div', { class: 'menu-row' }, this.codeInput, this.joinBtn),
+        this.practiceBtn,
         this.error,
         h('div', { class: 'menu-foot' },
           '이동: WASD/방향키 · 사용: E/스페이스 · 신고: R · 킬: Q · 벤트: V · 지도: Tab',
@@ -67,6 +70,7 @@ export class Menu {
   setBusy(b) {
     this.createBtn.disabled = b;
     this.joinBtn.disabled = b;
+    this.practiceBtn.disabled = b;
   }
 
   readName() {
@@ -77,13 +81,13 @@ export class Menu {
     return name;
   }
 
-  async create() {
+  async create(practice = false) {
     unlockAudio();
     const name = this.readName();
     if (!name) return;
     this.error.textContent = '';
     this.setBusy(true);
-    const r = await this.net.request('create', { name, color: this.prefs.color });
+    const r = await this.net.request('create', practice ? { name, color: this.prefs.color, practice: true } : { name, color: this.prefs.color });
     this.setBusy(false);
     if (!r.ok) this.error.textContent = errorText(r.error);
     else play('uiSelect');

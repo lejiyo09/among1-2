@@ -49,7 +49,9 @@ export function parseMap(tmj, collisionBytes) {
     rooms,
     roomAt,
     // 회의 후(와 기본) 시작 위치. type 이 startSpawn 인 점은 게임 시작 위치 (미라 HQ: 발사대)
-    spawn: layer('spawn').filter((o) => o.type !== 'startSpawn').map((o) => ({ x: o.x, y: o.y })),
+    spawn: layer('spawn').filter((o) => o.type !== 'startSpawn' && o.type !== 'dummy').map((o) => ({ x: o.x, y: o.y })),
+    // 연습 모드 더미 크루원 자리 (원작 프리팹 DummyLocations)
+    dummySpawn: layer('spawn').filter((o) => o.type === 'dummy').map((o) => ({ x: o.x, y: o.y })),
     startSpawn: layer('spawn').filter((o) => o.type === 'startSpawn').map((o) => ({ x: o.x, y: o.y })),
     commsMode: mapProps.commsMode ?? 'dial',
     reactorTime: mapProps.reactorTime ?? null, // 원자로 붕괴 제한 시간(초). 없으면 TIMINGS.reactorTime

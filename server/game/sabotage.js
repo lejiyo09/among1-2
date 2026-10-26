@@ -187,7 +187,9 @@ export class SabotageSystem {
       if (a.holders.size >= 2 && ids.size >= 2) { this.resolve(now); return; }
     }
     if (a.endsAt && now >= a.endsAt) {
-      this.room.endGame('impostor', 'sabotage');
+      // 연습 모드는 패배 대신 사보타주를 끝낸다
+      if (this.room.practice) { this.room.chatSystem('연습 모드: 시간이 다 되어 사보타주가 끝났습니다. (실제 게임이면 임포스터 승리)'); this.resolve(now); }
+      else this.room.endGame('impostor', 'sabotage');
     }
   }
 

@@ -45,6 +45,8 @@ export class Hud {
     this.saboTimer = h('div', { class: 'sabo-timer hidden' });
     this.ventArrows = h('div', { class: 'vent-arrows' });
     this.ghostNote = h('div', { class: 'ghost-note hidden' });
+    // 연습 모드: 승패 없이 계속되므로 직접 끝내는 버튼
+    this.endPracticeBtn = h('button', { class: 'btn small hidden practice-end', title: '연습 끝내고 대기실로', onclick: () => this.endPractice() }, '연습 끝내기');
     this.chatBtn = h('button', { class: 'icon-btn hidden', title: '유령 채팅', onclick: () => this.ghostChat.classList.toggle('hidden') }, h('span', {}, '💬'));
     this.ghostChatView = chat.view({ placeholder: '유령끼리 대화…' });
     this.ghostChat = h('div', { class: 'panel chat-float hidden' }, h('div', { class: 'section-title' }, '유령 채팅'), this.ghostChatView.el);
@@ -53,6 +55,7 @@ export class Hud {
       this.saboAlert,
       h('div', { class: 'taskbar-wrap' }, this.taskbar, this.tasklist),
       h('div', { class: 'top-right' },
+        this.endPracticeBtn,
         this.chatBtn,
         h('button', { class: 'icon-btn', title: '지도 (Tab)', onclick: () => this.mapView.toggle('map') }, h('img', { src: 'assets/ui/map.png', alt: '지도' })),
         h('button', { class: 'icon-btn', title: '나가기', onclick: () => this.leave() }, h('span', {}, '⏏')),
@@ -86,6 +89,7 @@ export class Hud {
       closeTaskPanel(); closeFixPanel(); this.mapView.close(); loop('sabotageAlarm', false);
       return;
     }
+    this.endPracticeBtn.classList.toggle('hidden', !st.practice);
     const you = st.you;
     if (!you) return;
     const imp = you.role === ROLES.IMPOSTOR;
@@ -284,6 +288,11 @@ export class Hud {
     else if (k === 'q') this.doKill();
     else if (k === 'v') this.doVent();
     else if (k === 'f' && this.store.isImpostor) this.mapView.open('sabotage');
+  }
+
+  async endPractice() {
+    const r = await this.net.request('endPractice', {});
+    if (!r.ok) toast(errorText(r.error), 'error');
   }
 
   async leave() {

@@ -119,6 +119,9 @@ export const objects = {
     // 회의 뒤: 식당 탁자 위아래 줄
     ...Array.from({ length: 8 }, (_, i) => ({ name: `spawn${i}`, type: 'spawn', x: 2760 + i * 68, y: 1990 })),
     ...Array.from({ length: 7 }, (_, i) => ({ name: `spawn${8 + i}`, type: 'spawn', x: 2790 + i * 72, y: 2345 })),
+    // 연습 모드 더미 크루원 (원작 프리팹 DummyLocations 6곳)
+    ...[[10.42, 1.56], [20.11, 4.8], [19.76, -3.01], [10.94, 12.27], [21.03, 23.12], [22.3, 17.42]]
+      .map(([x, y], i) => ({ name: `dummy${i}`, type: 'dummy', ...W(x, y) })),
     // 게임 시작: 원작처럼 발사대 노란 원 주변
     ...Array.from({ length: 15 }, (_, i) => {
       const a = (i / 15) * Math.PI * 2 - Math.PI / 2;

@@ -57,7 +57,7 @@ const RID = opt(int(0, 2 ** 31)); // 요청 ID (중복 처리 방지/응답 매�
 /** 클라이언트 → 서버 메시지 스키마 */
 export const C2S = {
   hello: { v: int(0, 1000) },
-  create: { name: NAME, color: opt(COLOR), rid: RID },
+  create: { name: NAME, color: opt(COLOR), practice: opt(bool()), rid: RID },
   join: { code: CODE, name: NAME, color: opt(COLOR), rid: RID },
   resume: { token: str(32, 64, /^[a-f0-9]+$/), rid: RID },
   leave: { rid: RID },
@@ -65,6 +65,7 @@ export const C2S = {
   setSettings: { settings: obj({}), rid: RID },
   ready: { ready: bool(), rid: RID },
   start: { rid: RID },
+  endPractice: { rid: RID }, // 연습 모드: 게임을 끝내고 대기실로
   kick: { playerId: ID, rid: RID },
   chat: { text: str(1, MAX_CHAT), rid: RID },
   input: { seq: int(0, 2 ** 31), d: arr(int(-1, 15), MAX_INPUT_BATCH) },

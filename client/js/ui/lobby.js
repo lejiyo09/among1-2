@@ -83,7 +83,7 @@ export class Lobby {
     const me = this.store.player(this.store.playerId);
     const host = this.store.isHost;
     this.codeEl.textContent = st.code;
-    this.countEl.textContent = `${st.players.length} / 15명`;
+    this.countEl.textContent = st.practice ? '연습 모드 (혼자)' : `${st.players.length} / 15명`;
 
     this.playerList.replaceChildren(...st.players.map((p) => h('div', { class: 'player-row' },
       h('img', { src: crewIcon(p.color), alt: '' }),
@@ -114,13 +114,21 @@ export class Lobby {
     if (st.players.length < st.minPlayers) hint = `최소 ${st.minPlayers}명이 필요합니다. (현재 ${st.players.length}명)`;
     else if (notReady) hint = `준비하지 않은 플레이어 ${notReady}명`;
     if (!host) hint = me?.ready ? '방장이 시작하기를 기다리는 중…' : '준비 버튼을 눌러 주세요.';
+    if (st.practice) hint = '혼자 연습 · 승패 없음 · 게임 중 "연습 끝내기"로 복귀';
     this.startHint.textContent = hint;
     this.startBtn.disabled = host && (st.players.length < st.minPlayers || notReady > 0);
   }
 
   renderSettings(s, editable, count) {
     const rows = [];
+    if (this.store.state?.practice) {
+      // 연습 모드: 해 볼 역할 고르기 (원작 자유 플레이의 노트북 역할 전환)
+      rows.push(h('label', {}, '내 역할'), h('select', { onchange: (e) => this.set('practiceRole', e.target.value) },
+        h('option', { value: 'crewmate', selected: s.practiceRole !== 'impostor' }, '승무원'),
+        h('option', { value: 'impostor', selected: s.practiceRole === 'impostor' }, '임포스터')));
+    }
     for (const [key, label, kind, opt] of SETTING_FIELDS) {
+      if (key === 'impostors' && this.store.state?.practice) continue;
       const val = s[key];
       let ctl;
       if (kind === 'map') {

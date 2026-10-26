@@ -65,17 +65,17 @@ export class RoomManager {
   }
 
   // ------------------------------------------------------------- 방
-  createRoom() {
+  createRoom({ practice = false } = {}) {
     if (this.rooms.size >= this.maxRooms) return null;
     let code;
     do code = roomCode(ROOM_CODE_LENGTH); while (this.rooms.has(code));
     const room = new Room({
-      code, maps: this.maps, now: this.now, minPlayers: this.minPlayers,
+      code, maps: this.maps, now: this.now, minPlayers: practice ? 1 : this.minPlayers, practice,
       onEmpty: (r) => { this.rooms.delete(r.code); log.info(`room ${r.code} closed`); },
       onPlayerRemoved: (p) => { if (p.token) this.sessions.delete(p.token); },
     });
     this.rooms.set(code, room);
-    log.info(`room ${code} created`);
+    log.info(`room ${code} created${practice ? ' (practice)' : ''}`);
     return room;
   }
 
@@ -112,7 +112,7 @@ export class RoomManager {
     if (conn.player) return ERR.ALREADY_IN_ROOM;
     const name = sanitizeName(msg.name);
     if (!name) return ERR.BAD_NAME;
-    const room = this.createRoom();
+    const room = this.createRoom({ practice: msg.practice === true });
     if (!room) return ERR.SERVER_FULL;
     return this.enter(conn, room, name, msg.color);
   }

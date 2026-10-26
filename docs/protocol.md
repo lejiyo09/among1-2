@@ -57,7 +57,8 @@
 | 클라이언트 → 서버 | 필드 | 설명 |
 |---|---|---|
 | `hello` | `v` | 접속 직후. 서버가 `welcome {protocol, now, minPlayers}` 응답 |
-| `create` | `name`, `color?`, `rid?` | 방 만들기 → `joined` |
+| `create` | `name`, `color?`, `practice?`, `rid?` | 방 만들기 → `joined`. `practice: true` 는 혼자 하는 연습 방(원작 자유 플레이: 더미 크루원, 승패 없음, 다른 사람 입장 불가, 설정 `practiceRole`) |
+| `endPractice` | `rid?` | 연습 방에서 게임을 끝내고 대기실로 |
 | `join` | `code`(영문 대문자 6), `name`, `color?`, `rid?` | 방 코드로 입장 → `joined` |
 | `resume` | `token`(hex 32), `rid?` | 재접속 → `joined {resumed:true}` 또는 `SESSION_EXPIRED` |
 | `leave` | `rid?` | 정상 퇴장 → `left`. 토큰이 무효가 된다 |
