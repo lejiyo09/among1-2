@@ -2,12 +2,13 @@
 // 각 함수: (stage 요소, ctx) → { destroy }. 퍼즐을 풀면 ctx.complete(답) 호출
 import { h } from '../ui/dom.js';
 import { canvasStage, rrect } from './index.js';
-import { CARD_SWIPE_MS, MANIFOLD_COUNT, SIMON_ROUNDS, ASTEROIDS_TARGET, SHIELD_COUNT } from '../../shared/tasks.js';
+import { CARD_SWIPE_MS, MANIFOLD_COUNT, SIMON_ROUNDS, ASTEROIDS_TARGET, SHIELD_COUNT, DIVERT_TARGETS, ROOM_NAMES_KO } from '../../shared/tasks.js';
+import { MIRA_GAMES } from './mira.js';
 
 const WIRE_HEX = { red: '#ff1d1d', blue: '#2a4dff', yellow: '#ffeb04', magenta: '#ff00ff' };
 
 /** 포인터 드래그 공통 처리 */
-function drag(canvas, toLocal, { down, move, up }) {
+export function drag(canvas, toLocal, { down, move, up }) {
   let active = false;
   const onDown = (e) => { active = down(toLocal(e)) !== false; if (active) canvas.setPointerCapture(e.pointerId); };
   const onMove = (e) => { if (active) move?.(toLocal(e)); };
@@ -248,7 +249,7 @@ function shields(stage, ctx) {
 }
 
 // ----------------------------------------------------------------- 진행 막대형 (다운로드/업로드, 스캔)
-function progressTask(stage, ctx, { label, startText, durationMs, lines, sound }) {
+export function progressTask(stage, ctx, { label, startText, durationMs, lines, sound }) {
   const fill = h('div', { class: 'fill' });
   const info = h('div', { style: { fontFamily: 'monospace', fontSize: '15px', minHeight: '5.5em', whiteSpace: 'pre-line' } });
   const btn = h('button', { class: 'btn primary', style: { alignSelf: 'center' } }, startText);
@@ -294,7 +295,7 @@ function scan(stage, ctx) {
 }
 
 // ----------------------------------------------------------------- 누르고 있기형 (연료, 쓰레기)
-function holdTask(stage, ctx, { label, hint, durationMs, sound, color }) {
+export function holdTask(stage, ctx, { label, hint, durationMs, sound, color }) {
   const fill = h('div', { class: 'fill', style: { background: color } });
   const btn = h('button', { class: 'btn primary', style: { height: '90px', fontSize: '20px', touchAction: 'none' } }, label);
   stage.append(h('div', { style: { padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px', background: '#2c3440' } },
@@ -319,7 +320,7 @@ function holdTask(stage, ctx, { label, hint, durationMs, sound, color }) {
 }
 
 function fuel(stage, ctx) {
-  const fill = ctx.spot?.room === 'Storage';
+  const fill = ctx.spot?.room === 'Storage' || ctx.spot?.taskType === 'gascan';
   return holdTask(stage, ctx, { label: fill ? '연료통 채우기' : '엔진에 연료 넣기', hint: '버튼을 누르고 있으세요.', durationMs: 2900, sound: 'fuel', color: 'linear-gradient(#ffd34d,#e69a00)' });
 }
 
@@ -484,7 +485,7 @@ function o2filter(stage, ctx) {
 // ----------------------------------------------------------------- 전력 우회
 function divert(stage, ctx) {
   const target = ctx.challenge.target;
-  const names = ['무기', '산소', '항해', '방어막', '통신', '조종', '원자로', '보안'];
+  const names = ctx.store.map.id === 'skeld' ? DIVERT_TARGETS.skeld : (DIVERT_TARGETS[ctx.store.map.id] ?? DIVERT_TARGETS.skeld).map((r) => ROOM_NAMES_KO[r] ?? r);
   const W = 520, H = 340;
   const s = canvasStage(stage, W, H);
   const vals = names.map(() => 0);
@@ -510,4 +511,4 @@ function divert(stage, ctx) {
   return { destroy: s.stop };
 }
 
-export const GAMES = { wires, card, manifolds, simon, asteroids, shields, data, scan, fuel, garbage, steering, calibrate, align, chart, o2filter, divert };
+export const GAMES = { wires, card, manifolds, simon, asteroids, shields, data, scan, fuel, garbage, steering, calibrate, align, chart, o2filter, divert, ...MIRA_GAMES };

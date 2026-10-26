@@ -4,7 +4,16 @@ import { loadMap } from '../server/mapLoader.js';
 import { CollisionWorld } from '../shared/map.js';
 import { PLAYER_RADIUS, USE_RANGE, VENT_RANGE } from '../shared/constants.js';
 
-const map = loadMap('skeld');
+import { taskDefsFor, stepCandidates } from '../shared/tasks.js';
+
+// 맵별 원작 기준 수치
+const EXPECT = {
+  skeld: { rooms: 14, doors: 13, vents: 14 },
+  mira: { rooms: 13, doors: 0, vents: 11 },
+};
+
+for (const [mapId, expect] of Object.entries(EXPECT)) {
+const map = loadMap(mapId);
 const world = new CollisionWorld(map);
 
 /** 스폰 지점에서 플레이어 원이 도달할 수 있는 셀 중심 집합 */
@@ -38,22 +47,23 @@ function nearestReachable(x, y) {
   return best;
 }
 
-test('맵 기본 구조', () => {
-  assert.equal(map.rooms.length, 14);
-  assert.equal(map.doors.length, 13, '원작 스켈드 문은 13개');
-  assert.equal(map.vents.length, 14, '원작 스켈드 벤트는 14개');
+test(`${mapId}: 맵 기본 구조`, () => {
+  assert.equal(map.id, mapId);
+  assert.equal(map.rooms.length, expect.rooms);
+  assert.equal(map.doors.length, expect.doors, '원작 문 개수');
+  assert.equal(map.vents.length, expect.vents, '원작 벤트 개수');
   assert.ok(map.emergency);
   assert.ok(map.spawn.length >= 15);
 });
 
-test('모든 스폰 지점은 비어 있고 서로 연결된다', () => {
-  for (const s of map.spawn) {
+test(`${mapId}: 모든 스폰 지점은 비어 있고 서로 연결된다`, () => {
+  for (const s of [...map.spawn, ...map.startSpawn]) {
     assert.ok(world.circleFree(s.x, s.y, PLAYER_RADIUS), `spawn (${s.x},${s.y}) blocked`);
     assert.ok(nearestReachable(s.x, s.y) < map.cell, `spawn (${s.x},${s.y}) unreachable`);
   }
 });
 
-test('모든 방에 걸어서 갈 수 있다', () => {
+test(`${mapId}: 모든 방에 걸어서 갈 수 있다`, () => {
   for (const r of map.rooms) {
     const [x0, y0, x1, y1] = r.rect;
     let ok = false;
@@ -64,14 +74,14 @@ test('모든 방에 걸어서 갈 수 있다', () => {
   }
 });
 
-test('모든 미션 지점은 사용 거리 안에서 접근 가능', () => {
+test(`${mapId}: 모든 미션 지점은 사용 거리 안에서 접근 가능`, () => {
   for (const t of map.tasks) {
     const d = nearestReachable(t.x, t.y);
     assert.ok(d <= USE_RANGE * 0.75, `task ${t.id} too far from walkable area (${d.toFixed(0)}px)`);
   }
 });
 
-test('모든 사보타주 콘솔과 비상 버튼은 접근 가능', () => {
+test(`${mapId}: 모든 사보타주 콘솔과 비상 버튼은 접근 가능`, () => {
   for (const c of map.consoles) {
     const d = nearestReachable(c.x, c.y);
     assert.ok(d <= USE_RANGE * 0.75, `console ${c.id} too far (${d.toFixed(0)}px)`);
@@ -80,7 +90,7 @@ test('모든 사보타주 콘솔과 비상 버튼은 접근 가능', () => {
   assert.ok(nearestReachable(e.x, e.y) <= e.range * 0.85, 'emergency button too far');
 });
 
-test('모든 벤트는 접근 가능하고 연결이 양방향', () => {
+test(`${mapId}: 모든 벤트는 접근 가능하고 연결이 양방향`, () => {
   const ids = new Set(map.vents.map((v) => v.id));
   for (const v of map.vents) {
     const d = nearestReachable(v.x, v.y);
@@ -92,7 +102,7 @@ test('모든 벤트는 접근 가능하고 연결이 양방향', () => {
   }
 });
 
-test('문을 닫으면 통로가 완전히 막힌다', () => {
+test(`${mapId}: 문을 닫으면 통로가 완전히 막힌다`, () => {
   for (const d of map.doors) {
     const w = new CollisionWorld(map);
     const before = reachableFrom(w, map.spawn[0]).reduce((a, b) => a + b, 0);
@@ -115,3 +125,13 @@ test('문을 닫으면 통로가 완전히 막힌다', () => {
     }
   }
 });
+
+test(`${mapId}: 공통·긴·짧은 미션이 모두 있고 단계별 지점이 있다`, () => {
+  const defs = taskDefsFor(map);
+  for (const len of ['common', 'long', 'short']) assert.ok(defs.some((d) => d.length === len), `${len} 미션 없음`);
+  for (const d of defs) for (const st of d.steps) assert.ok(stepCandidates(map, st).length, `${d.id} 단계 지점 없음`);
+  // 지점은 있는데 정의가 빠진 미션 종류가 없어야 한다
+  const used = new Set(defs.flatMap((d) => d.steps.map((st) => st.spotType)));
+  for (const t of map.tasks) assert.ok(used.has(t.taskType), `${t.id} (${t.taskType}) 를 쓰는 미션이 없음`);
+});
+}

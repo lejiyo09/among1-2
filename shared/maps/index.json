@@ -10,5 +10,11 @@
     "file": "skeld.tmj",
     "kind": "game",
     "displayName": "더 스켈드"
+  },
+  {
+    "id": "mira",
+    "file": "mira.tmj",
+    "kind": "game",
+    "displayName": "미라 HQ"
   }
 ]

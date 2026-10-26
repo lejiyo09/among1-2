@@ -1,4 +1,4 @@
-// 사보타주 수리 창: 원자로(두 명이 손 올리기), 산소(코드 입력), 전등(스위치), 통신(다이얼)
+// 사보타주 수리 창: 원자로(두 명이 손 올리기), 산소(코드 입력), 전등(스위치), 통신(스켈드: 다이얼, 미라 HQ: 키패드 두 곳)
 import { h, toast, errorText } from '../ui/dom.js';
 import { play } from '../audio.js';
 
@@ -47,13 +47,16 @@ export function openFix({ net, store, console: con }) {
     body.append(pad, status);
     render = () => { status.textContent = `손을 올린 장치: ${sab()?.held?.length ?? 0}/2 — 다른 장치에서 동료도 손을 올려야 합니다.`; };
     state.cleanup = () => release();
-  } else if (kind === 'o2') {
+  } else if (kind === 'o2' || (kind === 'comms' && sab()?.mode === 'keypad')) {
+    // 산소: 쪽지에 적힌 오늘의 코드 5자리 / 미라 HQ 통신: 장치 화면에 뜬 4자리 코드
+    const len = kind === 'o2' ? 5 : 4;
     let entry = '';
     const screen = h('div', { style: { fontFamily: 'monospace', fontSize: '34px', background: '#0b1a12', color: '#7dff9b', padding: '8px', textAlign: 'center', border: '3px solid #000', borderRadius: '8px', letterSpacing: '0.2em', minHeight: '58px' } });
-    const note = h('div', { style: { background: '#fff7b8', color: '#222', padding: '8px 12px', transform: 'rotate(-3deg)', fontWeight: 900, fontSize: '20px', border: '2px solid #000', width: 'fit-content', margin: '0 auto 10px' } });
+    const note = h('div', { style: { background: kind === 'o2' ? '#fff7b8' : '#13202c', color: kind === 'o2' ? '#222' : '#ff5d5d', padding: '8px 12px', transform: kind === 'o2' ? 'rotate(-3deg)' : 'none', fontWeight: 900, fontSize: '20px', border: '2px solid #000', width: 'fit-content', margin: '0 auto 10px', fontFamily: kind === 'o2' ? 'inherit' : 'monospace' } });
     const key = (label, fn) => h('button', { class: 'btn', style: { height: '58px', fontSize: '22px' }, onclick: fn }, label);
-    const keys = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => key(String(n), () => { if (entry.length < 5) { entry += n; play('keypad', { vol: 0.5 }); upd(); } }));
-    keys.push(key('✕', () => { entry = ''; upd(); }), key('0', () => { if (entry.length < 5) { entry += '0'; play('keypad', { vol: 0.5 }); upd(); } }), key('✓', async () => {
+    const press = (d) => { if (entry.length < len) { entry += d; play('keypad', { vol: 0.5 }); upd(); } };
+    const keys = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => key(String(n), () => press(String(n))));
+    keys.push(key('✕', () => { entry = ''; upd(); }), key('0', () => press('0')), key('✓', async () => {
       const r = await send('code', Number(entry));
       if (r.ok) { play('keypadGood'); msg.textContent = '이 장치는 복구되었습니다.'; msg.className = 'task-msg ok'; setTimeout(closeFixPanel, 700); }
       entry = ''; upd();
@@ -62,7 +65,7 @@ export function openFix({ net, store, console: con }) {
     body.append(note, screen, h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginTop: '10px' } }, keys));
     render = () => {
       const a = sab();
-      note.textContent = `오늘의 코드: ${a?.code ?? '-----'}`;
+      note.textContent = kind === 'o2' ? `오늘의 코드: ${a?.code ?? '-----'}` : `코드: ${a?.codes?.[con.id] ?? '----'}`;
       if (a?.fixed?.includes(con.id)) { msg.textContent = '이 장치는 이미 복구되었습니다. 다른 장치도 복구하세요.'; msg.className = 'task-msg ok'; }
     };
     upd();

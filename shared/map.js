@@ -48,7 +48,12 @@ export function parseMap(tmj, collisionBytes) {
     gw, gh, cell, grid,
     rooms,
     roomAt,
-    spawn: layer('spawn').map((o) => ({ x: o.x, y: o.y })),
+    // 회의 후(와 기본) 시작 위치. type 이 startSpawn 인 점은 게임 시작 위치 (미라 HQ: 발사대)
+    spawn: layer('spawn').filter((o) => o.type !== 'startSpawn').map((o) => ({ x: o.x, y: o.y })),
+    startSpawn: layer('spawn').filter((o) => o.type === 'startSpawn').map((o) => ({ x: o.x, y: o.y })),
+    commsMode: mapProps.commsMode ?? 'dial',
+    reactorTime: mapProps.reactorTime ?? null, // 원자로 붕괴 제한 시간(초). 없으면 TIMINGS.reactorTime
+    minimap: mapProps.minimap ?? null,
     emergency: layer('emergency').map((o) => ({ x: o.x, y: o.y, range: props(o).range ?? 170 }))[0],
     tasks: layer('tasks').map((o) => ({ id: o.name, taskType: props(o).taskType, room: props(o).room || roomAt(o.x, o.y), x: o.x, y: o.y })),
     vents: layer('vents').map((o) => ({ id: o.name, x: o.x, y: o.y, links: String(props(o).links ?? '').split(',').filter(Boolean), room: roomAt(o.x, o.y) })),

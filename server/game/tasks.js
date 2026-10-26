@@ -1,10 +1,8 @@
 // 미션 배정과 서버 측 정답 검증
 // 퍼즐형 미션(배선, 매니폴드, 원자로, 방어막, 전력 우회)은 서버가 문제를 만들고
 // 클라이언트가 제출한 답을 서버가 다시 확인한다. 나머지는 최소 수행 시간과 거리로 검증한다.
-import { TASK_DEFS, WIRE_COLORS, MANIFOLD_COUNT, SIMON_ROUNDS, SHIELD_COUNT, CARD_SWIPE_MS, ASTEROIDS_TARGET } from '../../shared/tasks.js';
+import { TASK_DEFS, WIRE_COLORS, MANIFOLD_COUNT, SIMON_ROUNDS, SHIELD_COUNT, CARD_SWIPE_MS, ASTEROIDS_TARGET, BEVERAGES, SAMPLE_KINDS, stepCandidates, taskDefsFor } from '../../shared/tasks.js';
 import { shuffle, pick, randInt } from '../util/random.js';
-
-const PICK_ROOM = { storage: 'Storage', upper: 'UpperEngine', lower: 'LowerEngine', admin: 'Admin', cafeteria: 'Cafeteria' };
 
 /**
  * @typedef {{defId:string, spots:string[], step:number, done:boolean}} PlayerTask
@@ -15,8 +13,7 @@ export function buildTask(map, defId) {
   const def = TASK_DEFS[defId];
   const used = new Set();
   const spots = def.steps.map((step) => {
-    let candidates = map.tasks.filter((t) => t.taskType === step.spotType);
-    if (step.pick && step.pick !== 'random') candidates = candidates.filter((t) => t.room === PICK_ROOM[step.pick]);
+    const candidates = stepCandidates(map, step);
     // 배선처럼 같은 종류를 여러 번 하는 미션은 다른 장소를 고른다
     const fresh = candidates.filter((t) => !used.has(t.id));
     const chosen = pick(fresh.length ? fresh : candidates);
@@ -35,7 +32,8 @@ export function buildTask(map, defId) {
  * @returns {(playerId:string) => PlayerTask[]}
  */
 export function createTaskAssigner(map, settings) {
-  const byLength = (len) => Object.values(TASK_DEFS).filter((d) => d.length === len).map((d) => d.id);
+  const defs = taskDefsFor(map);
+  const byLength = (len) => defs.filter((d) => d.length === len).map((d) => d.id);
   const common = shuffle(byLength('common')).slice(0, settings.commonTasks).map((id) => buildTask(map, id));
   return () => {
     const longs = shuffle(byLength('long')).slice(0, settings.longTasks);
@@ -48,9 +46,9 @@ export function createTaskAssigner(map, settings) {
   };
 }
 
-/** 퍼즐 문제 생성. 반환값은 그대로 클라이언트에 보낸다. */
-export function makeChallenge(defId) {
-  switch (defId) {
+/** 퍼즐 문제 생성 (game = 미니게임 이름, shared/tasks.js gameOf). 반환값은 그대로 클라이언트에 보낸다. */
+export function makeChallenge(game) {
+  switch (game) {
     case 'wires': return { left: shuffle(WIRE_COLORS), right: shuffle(WIRE_COLORS) };
     case 'manifolds': return { labels: shuffle(Array.from({ length: MANIFOLD_COUNT }, (_, i) => i + 1)) };
     case 'simon': return { seq: Array.from({ length: SIMON_ROUNDS }, () => randInt(9)) };
@@ -61,6 +59,10 @@ export function makeChallenge(defId) {
     case 'divert': return { target: randInt(8) };
     case 'align': return { start: randInt(2) ? -0.6 - Math.random() * 0.3 : 0.6 + Math.random() * 0.3 };
     case 'calibrate': return { speeds: [1 + randInt(3), 1 + randInt(3), 1 + randInt(3)] };
+    case 'idcode': return { code: String(randInt(100000)).padStart(5, '0') };
+    case 'beverage': return { drink: randInt(BEVERAGES.length) };
+    case 'diagnostics': return { anomaly: randInt(4) };
+    case 'samples': return { kinds: Array.from({ length: 6 }, () => randInt(SAMPLE_KINDS)) };
     case 'steering': return { start: [Math.round((Math.random() * 2 - 1) * 80), Math.round((Math.random() * 2 - 1) * 80)] };
     default: return {};
   }
@@ -69,8 +71,8 @@ export function makeChallenge(defId) {
 const isIntArray = (a, len) => Array.isArray(a) && a.length === len && a.every(Number.isInteger);
 
 /** 클라이언트가 제출한 답 검증 */
-export function validateAnswer(defId, challenge, answer) {
-  switch (defId) {
+export function validateAnswer(game, challenge, answer) {
+  switch (game) {
     case 'wires': {
       // answer[i] = 왼쪽 i번 전선을 연결한 오른쪽 단자 번호
       if (!isIntArray(answer, 4) || new Set(answer).size !== 4) return false;
@@ -91,6 +93,10 @@ export function validateAnswer(defId, challenge, answer) {
     case 'card': return typeof answer === 'number' && answer >= CARD_SWIPE_MS[0] && answer <= CARD_SWIPE_MS[1];
     case 'asteroids': return Number.isInteger(answer) && answer >= ASTEROIDS_TARGET && answer <= 200;
     case 'align': return typeof answer === 'number' && Math.abs(answer) <= 0.08;
+    case 'idcode': return typeof answer === 'string' && answer === challenge.code;
+    case 'beverage': return answer === challenge.drink;
+    case 'diagnostics': return answer === challenge.anomaly;
+    case 'samples': return isIntArray(answer, challenge.kinds.length) && answer.every((bin, i) => bin === challenge.kinds[i]);
     default: return true;
   }
 }

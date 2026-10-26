@@ -1,21 +1,25 @@
-// 지도: 원작 스켈드 미니맵 위에 내 위치·미션 표시. 임포스터는 사보타주 지도로 사용
+// 지도: 맵별 미니맵 위에 내 위치·미션 표시. 임포스터는 사보타주 지도로 사용
 import { h, toast, errorText } from './dom.js';
 import { PHASES, ROLES, COLORS } from '../../shared/constants.js';
 import { ROOM_NAMES_KO } from '../../shared/tasks.js';
 import { play } from '../audio.js';
 
-// 월드(skeld.png 3587×2064) → 미니맵(980×561) 변환. 방 경계를 비교해 구한 값
-const SX = 0.273, SY = 0.2726, OX = -3, OY = 3;
-const MW = 980, MH = 561;
-const toMap = (x, y) => ({ left: `${((x * SX + OX) / MW) * 100}%`, top: `${((y * SY + OY) / MH) * 100}%` });
+/**
+ * 맵별 미니맵 그림과 월드 → 미니맵 변환.
+ * 스켈드: 원작 미니맵(980×561), 방 경계를 비교해 구한 값. 그 밖의 맵: 빌드 도구가 바닥으로 만든 그림(가로 1000px)
+ */
+function minimapOf(map) {
+  if (map.id === 'skeld') return { src: 'assets/map/minimap.png', sx: 0.273, sy: 0.2726, ox: -3, oy: 3, w: 980, h: 561 };
+  const s = 1000 / map.width;
+  return { src: map.minimap, sx: s, sy: s, ox: 0, oy: 0, w: 1000, h: Math.round(map.height * s) };
+}
 
 const SABOTAGES = [
-  { kind: 'reactor', room: 'Reactor', icon: '☢', title: '원자로 붕괴' },
-  { kind: 'o2', room: 'O2', icon: '🫧', title: '산소 고갈' },
-  { kind: 'lights', room: 'Electrical', icon: '💡', title: '전등 고장' },
-  { kind: 'comms', room: 'Communications', icon: '📡', title: '통신 방해' },
+  { kind: 'reactor', icon: '☢', title: '원자로 붕괴' },
+  { kind: 'o2', icon: '🫧', title: '산소 고갈' },
+  { kind: 'lights', icon: '💡', title: '전등 고장' },
+  { kind: 'comms', icon: '📡', title: '통신 방해' },
 ];
-const DOOR_ROOMS = ['Cafeteria', 'Storage', 'UpperEngine', 'LowerEngine', 'Security', 'Electrical', 'MedBay'];
 
 export class MapView {
   constructor({ net, store, root }) {
@@ -23,7 +27,7 @@ export class MapView {
     this.store = store;
     this.mode = null;
     this.layer = h('div', {});
-    this.img = h('img', { src: 'assets/map/minimap.png', alt: '스켈드 지도', draggable: false });
+    this.img = h('img', { alt: '지도', draggable: false });
     this.wrap = h('div', { class: 'wrap' }, this.img, this.layer,
       h('button', { class: 'icon-btn map-close', title: '닫기', onclick: () => this.close() }, h('img', { src: 'assets/ui/close.png', alt: '닫기' })));
     this.el = h('div', { class: 'mapview hidden', onclick: (e) => { if (e.target === this.el) this.close(); } }, this.wrap);
@@ -58,23 +62,34 @@ export class MapView {
 
   /** 방 이름과 사보타주 버튼은 열 때 한 번만 만든다 (계속 다시 만들면 클릭이 씹힌다) */
   build() {
+    const map = this.store.map;
+    const mm = minimapOf(map);
+    if (this.img.getAttribute('src') !== mm.src) this.img.src = mm.src;
+    this.img.classList.toggle('tinted', map.id === 'skeld'); // 원작 스켈드 미니맵 그림은 색을 바꿔 쓴다
+    this.wrap.style.aspectRatio = `${mm.w} / ${mm.h}`;
+    this.wrap.style.width = `min(980px, 96vw, calc(92vh * ${mm.w / mm.h}))`;
+    this.img.alt = `${map.displayName} 지도`;
+    const toMap = this.toMap = (x, y) => ({ left: `${((x * mm.sx + mm.ox) / mm.w) * 100}%`, top: `${((y * mm.sy + mm.oy) / mm.h) * 100}%` });
     const labels = this.store.map.rooms.map((r) => {
       const [x0, y0, x1, y1] = r.rect;
       return h('div', { class: 'map-label', style: toMap((x0 + x1) / 2, (y0 + y1) / 2 - 40) }, ROOM_NAMES_KO[r.name]);
     });
     this.saboButtons = [];
     if (this.mode === 'sabotage') {
+      // 사보타주 버튼은 그 사보타주의 첫 수리 장치가 있는 방에 둔다 (맵에 없는 사보타주는 버튼도 없다)
       for (const s of SABOTAGES) {
-        const r = this.store.map.rooms.find((x) => x.name === s.room);
+        const con = map.consoles.find((c) => c.sabotage === s.kind);
+        const r = con && map.rooms.find((x) => x.name === con.room);
+        if (!r) continue;
         const [x0, y0, x1, y1] = r.rect;
-        const b = h('button', { class: 'map-sabo', title: s.title, style: toMap((x0 + x1) / 2, (y0 + y1) / 2 + 30), onclick: () => this.sabotage(s.kind) }, s.icon);
+        const b = h('button', { class: 'map-sabo', title: s.title, style: toMap((x0 + x1) / 2 - (map.doors.length ? 100 : 0), (y0 + y1) / 2 + 30), onclick: () => this.sabotage(s.kind) }, s.icon);
         b.dataset.kind = s.kind;
         this.saboButtons.push(b);
       }
-      for (const room of DOOR_ROOMS) {
+      for (const room of [...new Set(map.doors.map((d) => d.room))]) {
         const r = this.store.map.rooms.find((x) => x.name === room);
         const [x0, y0, x1, y1] = r.rect;
-        const b = h('button', { class: 'map-sabo door', title: `${ROOM_NAMES_KO[room]} 문 닫기`, style: toMap((x0 + x1) / 2 + 70, (y0 + y1) / 2 + 30), onclick: () => this.sabotage('doors', room) }, '🚪');
+        const b = h('button', { class: 'map-sabo door', title: `${ROOM_NAMES_KO[room]} 문 닫기`, style: toMap((x0 + x1) / 2 + 110, (y0 + y1) / 2 + 30), onclick: () => this.sabotage('doors', room) }, '🚪');
         b.dataset.room = room;
         this.saboButtons.push(b);
       }
@@ -88,6 +103,7 @@ export class MapView {
     if (!st || st.phase !== PHASES.PLAYING) { this.close(); return; }
     if (this.builtFor !== this.mode) { this.build(); this.builtFor = this.mode; }
     const items = [];
+    const toMap = this.toMap;
     const you = st.you;
     const commsDown = st.sabotage?.active?.kind === 'comms';
     if (this.mode === 'map' && you?.tasks && !commsDown && !you.fake) {

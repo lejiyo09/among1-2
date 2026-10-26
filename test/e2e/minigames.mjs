@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT || 'playwright');
 const { validateAnswer } = await import('../../server/game/tasks.js');
-const { TASK_DEFS } = await import('../../shared/tasks.js');
+const { TASK_DEFS, gameOf } = await import('../../shared/tasks.js');
 const SHOTS = process.env.SHOTS || require('path').join(__dirname, 'shots');
 require('fs').mkdirSync(SHOTS, { recursive: true });
 const BASE = `${process.env.URL || 'http://localhost:3000/'}dev/tasks.html`;
@@ -90,24 +90,67 @@ const solvers = {
     }
   },
   async divert(ch) { const x = 40 + ch.target * 62; await dragC(x, 280, x, 40); },
+  // ---- 미라 HQ
+  async idcode(ch) {
+    for (const d of ch.code) await page.click(`.task-stage button:text-is("${d}")`);
+    await page.click('.task-stage button:text-is("✓")');
+  },
+  async water(ch, step) {
+    if (step === 0) { await clickC(240, 170); return; }
+    for (let i = 0; i < 4; i++) await clickC(75 + i * 110, 250);
+    await sleep(1200);
+  },
+  async divertAccept() { await page.click('.task-stage button'); },
+  async artifact() {
+    const shapes = [
+      [[0, -110], [45, -40], [0, -20], [-45, -40]], [[-45, -40], [0, -20], [0, 40], [-60, 10]], [[45, -40], [60, 10], [0, 40], [0, -20]],
+      [[-60, 10], [0, 40], [0, 110]], [[60, 10], [0, 110], [0, 40]],
+    ];
+    const starts = [[70, 70], [120, 180], [70, 290], [190, 80], [190, 290]];
+    for (let i = 0; i < 5; i++) {
+      const c = shapes[i].reduce((a, [x, y]) => [a[0] + x / shapes[i].length, a[1] + y / shapes[i].length], [0, 0]);
+      await dragC(...starts[i], 330 + c[0], 180 + c[1]);
+    }
+  },
+  async samples(ch) {
+    const btns = await page.$$('.task-stage button');
+    for (let i = 0; i < ch.kinds.length; i++) { await btns[i].click(); await btns[ch.kinds.length + ch.kinds[i]].click(); }
+  },
+  async weather() { await page.click('.task-stage button'); await sleep(6600); },
+  async process() { await page.click('.task-stage button'); await sleep(7600); },
+  async beverage(ch) {
+    await page.click(`.task-stage button:text-is("${'ABC'[Math.floor(ch.drink / 4)]}")`);
+    await page.click(`.task-stage button:text-is("${(ch.drink % 4) + 1}")`);
+    await page.click('.task-stage button:text-is("✓")');
+  },
+  async diagnostics(ch) {
+    await page.click('.task-stage button:has-text("진단 시작")');
+    await sleep(5400);
+    const btns = await page.$$('.task-stage button');
+    await btns[ch.anomaly].click();
+  },
 };
 
 let fails = 0;
-for (const game of Object.keys(TASK_DEFS)) {
-  for (const step of game === 'data' ? [0, 1] : [0]) {
-    await page.goto(`${BASE}?game=${game}&step=${step}`);
+for (const defId of Object.keys(TASK_DEFS)) {
+  // 단계마다 미니게임이 다르면 단계별로, 같은 미니게임을 쓰는 정의는 한 번만
+  const steps = defId === 'data' || defId === 'water' ? [0, 1] : TASK_DEFS[defId].steps.map((_, k) => k).filter((k) => k === 0 || gameOf(defId, k) !== gameOf(defId, 0));
+  if (TASK_DEFS[defId].game && steps.length === 1) continue;
+  for (const step of steps) {
+    const game = gameOf(defId, step);
+    await page.goto(`${BASE}?game=${defId}&step=${step}`);
     await page.waitForSelector('.task-panel');
     const ch = await page.evaluate(() => window.challenge);
     const t0 = Date.now();
-    try { await solvers[game](ch); } catch (e) { console.log(game, 'solver error', e.message); }
+    try { await solvers[game](ch, step); } catch (e) { console.log(game, 'solver error', e.message); }
     await page.waitForFunction(() => window.submitted.length > 0, null, { timeout: 15000 }).catch(() => {});
     const sub = await page.evaluate(() => ({ s: window.submitted[0], openedAt: window.openedAt }));
     await page.screenshot({ path: `${SHOTS}/mg-${game}${step ? step : ''}.png` });
     if (!sub.s) { console.log(`FAIL ${game}: 제출 없음`); fails++; continue; }
     const elapsed = sub.s.at - sub.openedAt;
     const okAns = validateAnswer(game, ch, sub.s.answer);
-    const okTime = elapsed >= TASK_DEFS[game].minMs;
-    console.log(`${okAns && okTime ? 'PASS' : 'FAIL'} ${game}${step ? `#${step}` : ''} answer=${JSON.stringify(sub.s.answer)} elapsed=${Math.round(elapsed)}ms (min ${TASK_DEFS[game].minMs})`);
+    const okTime = elapsed >= TASK_DEFS[defId].minMs;
+    console.log(`${okAns && okTime ? 'PASS' : 'FAIL'} ${game}${step ? `#${step}` : ''} answer=${JSON.stringify(sub.s.answer)} elapsed=${Math.round(elapsed)}ms (min ${TASK_DEFS[defId].minMs})`);
     if (!(okAns && okTime)) fails++;
   }
 }

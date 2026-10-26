@@ -185,8 +185,10 @@ input, textarea { user-select: text; -webkit-user-select: text; }
 /* ---------- 지도 ---------- */
 .mapview { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.55); z-index: 20; padding: 12px; }
 .mapview .wrap { position: relative; width: min(980px, 96vw); aspect-ratio: 980 / 561; }
-.mapview .wrap > img { width: 100%; height: 100%; filter: hue-rotate(195deg) saturate(0.7) brightness(1.05); opacity: 0.95; }
-.mapview.sabotage .wrap > img { filter: none; }
+.mapview .wrap > img { width: 100%; height: 100%; opacity: 0.95; }
+.mapview .wrap > img.tinted { filter: hue-rotate(195deg) saturate(0.7) brightness(1.05); }
+.mapview.sabotage .wrap > img.tinted { filter: none; }
+.mapview.sabotage .wrap > img:not(.tinted) { filter: hue-rotate(160deg) saturate(1.4); }
 .map-dot { position: absolute; width: 18px; height: 18px; margin: -9px; border-radius: 50%; border: 3px solid #000; }
 .map-task { position: absolute; margin: -12px; width: 24px; height: 24px; color: #ffe14d; font: 900 22px var(--font); text-shadow: 0 0 3px #000, 0 0 3px #000; text-align: center; line-height: 24px; animation: blink 1s infinite; }
 .map-sabo { position: absolute; margin: -22px; width: 44px; height: 44px; border-radius: 50%; border: 3px solid #000; background: #d9d9d9; font-size: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer; }

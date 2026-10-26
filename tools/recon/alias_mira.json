@@ -1,0 +1,10 @@
+{"CafeteriaWalls":"cafeteriaWalls","EntryWalls":"medBayCommsLockersWalls","Table":"caf_table","MedScanner":"med-scanner",
+"medBayBedHort":"med-bed-hort","medBayBed":"med-bed-bottom","storage-top":"storage-backwall","storageMid":"storage-shelves1",
+"lockersBench":"locker-bench","locker-bench-left-side":"locker-bench-side","labBottom":"lab-bottom","labTable":"lab-cent",
+"adminBottom":"admin-bottom","MapTable":"admin-map","ChartScreen":"admin-chart-course","computerTableB":"office-bot","computerTableM":"office-right",
+"greenhousePanel":"garden-center","reactor-area-upper":"reactor-console-upper","reactor-desk-lower":"reactor-console-lower","reactor-desk-elec":"reactor-console-elec",
+"reactor_Border-Top":"reactor_Border","reactor_Border-Mid":"reactor_Border","reactor_Border-Bottom":"reactor_Border","energyPanel":"reactor-center",
+"clawLeft":"reactorArmLeft","clawMiddle":"reactorArmMiddle","clawRight":"reactorArmRight","launch-pad-right":"launch-calibrate",
+"cafVendingMachRight":"cafe-vending1","cafShelf":"cafe-sidebar","cafVendMachbottom":"cafe-vending3","Spinny":"balcony_weatherSpinner0001",
+"balconyFence":"balconyFenceHorz","medBayBedBottom":"medbaybottom1","medBayBedBottomLeft":"medbaybottom2","UpperDoor":"vertical-door","LowerDoor":"vertical-door",
+"PlanterFern":"garden-plant1","PlanterBushMid":"garden-plant2","PlanterFernTop":"garden-plant1","PlanterBushTop":"garden-plant2","DataConsole":"office-panel-computer"}

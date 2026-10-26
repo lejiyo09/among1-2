@@ -1,57 +1,80 @@
-// 스켈드 맵 빌드 도구
-// 입력: client/assets/map/skeld.png (배경 이미지) + tools/skeld-objects.mjs (수작업 배치 데이터)
-// 출력: shared/maps/skeld.tmj (Tiled JSON 형식: 충돌 타일 레이어 + 오브젝트 레이어)
-//       tools/out/skeld-debug.png (충돌 확인용 오버레이, 커밋하지 않음)
+// 게임 맵 빌드 도구
+// 입력: tools/<맵>-objects.mjs (수작업 배치 데이터) (+ 스켈드는 client/assets/map/skeld.png 의 투명도)
+// 출력: shared/maps/<맵>.tmj (Tiled JSON 형식: 충돌 타일 레이어 + 오브젝트 레이어)
+//       floors 를 쓰는 맵은 client/assets/map/<맵>-minimap.png (지도 화면용)도 만든다
+//       tools/out/<맵>-debug.png (충돌 확인용 오버레이, --debug, 커밋하지 않음)
 //
-// 실행: npm run build:map   (devDependency인 pngjs가 필요하다)
+// 실행: npm run build:map            (모든 게임 맵)
+//       node tools/build-map.mjs mira  (한 맵만)
+// devDependency 인 pngjs 가 필요하다.
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { PNG } from 'pngjs';
-import { CELL, WALL_FACE, OUTLINE, obstacles, openings, objects } from './skeld-objects.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const img = PNG.sync.read(fs.readFileSync(path.join(root, 'client/assets/map/skeld.png')));
-const { width: W, height: H, data } = img;
+const names = process.argv.slice(2).filter((a) => !a.startsWith('--'));
+for (const name of names.length ? names : ['skeld', 'mira']) {
+  const cfg = await import(pathToFileURL(path.join(root, `tools/${name}-objects.mjs`)).href);
+  build(name, cfg);
+}
+
+function build(name, { CELL, WALL_FACE, OUTLINE, obstacles, openings, objects, floors, META, WIDTH, HEIGHT }) {
+const meta = META ?? {
+  mapId: 'skeld', displayName: '더 스켈드', image: 'assets/map/skeld.png',
+  source: 'Skeld map art by Z3_NON (via github.com/jinhyuk558/web-amongus-clone)',
+};
+// 디버그 오버레이 배경: 스켈드는 원본 PNG, 그 밖의 맵은 tools/out/<맵>-preview.png (커밋하지 않음) 가 있으면 사용
+const imgPath = floors ? path.join(root, `tools/out/${name}-preview.png`) : path.join(root, 'client/assets/map/skeld.png');
+const img = fs.existsSync(imgPath) ? PNG.sync.read(fs.readFileSync(imgPath)) : null;
+const W = WIDTH ?? img.width;
+const H = HEIGHT ?? img.height;
+const data = img?.data;
 const GW = Math.ceil(W / CELL);
 const GH = Math.ceil(H / CELL);
-
-// 1) 픽셀 단위 "우주 공간"(투명) 마스크
-const voidPx = new Uint8Array(W * H);
-for (let i = 0; i < W * H; i++) voidPx[i] = data[i * 4 + 3] < 128 ? 1 : 0;
-
-// 2) 벽 마스크: 투명 영역 + 투명 영역 아래 WALL_FACE 픽셀(위쪽 벽면) + 좌/우/아래 OUTLINE 픽셀(외곽선)
-const wallPx = new Uint8Array(W * H);
-// 이미지 바깥도 우주 공간으로 본다 (식당 윗벽은 이미지 맨 위에 붙어 있다)
-for (let x = 0; x < W; x++) {
-  let sinceVoid = 0;
-  for (let y = 0; y < H; y++) {
-    if (voidPx[y * W + x]) sinceVoid = 0; else sinceVoid++;
-    if (sinceVoid <= WALL_FACE) wallPx[y * W + x] = 1;
-  }
-  let untilVoid = 0; // 아래쪽 외곽선
-  for (let y = H - 1; y >= 0; y--) {
-    if (voidPx[y * W + x]) untilVoid = 0; else untilVoid++;
-    if (untilVoid <= OUTLINE) wallPx[y * W + x] = 1;
-  }
-}
-for (let y = 0; y < H; y++) {
-  let d = 0;
-  for (let x = 0; x < W; x++) { if (voidPx[y * W + x]) d = 0; else d++; if (d <= OUTLINE) wallPx[y * W + x] = 1; }
-  d = 0;
-  for (let x = W - 1; x >= 0; x--) { if (voidPx[y * W + x]) d = 0; else d++; if (d <= OUTLINE) wallPx[y * W + x] = 1; }
-}
-
-// 3) 셀 단위로 축약: 셀의 절반 이상이 벽이면 막힘
 const grid = new Uint8Array(GW * GH);
-for (let gy = 0; gy < GH; gy++) {
-  for (let gx = 0; gx < GW; gx++) {
-    let n = 0, t = 0;
-    for (let y = gy * CELL; y < Math.min(H, (gy + 1) * CELL); y++) {
-      for (let x = gx * CELL; x < Math.min(W, (gx + 1) * CELL); x++) { t++; n += wallPx[y * W + x]; }
+
+if (floors) {
+  // 바닥 목록 방식: 바닥 도형 안만 걸을 수 있고 나머지는 벽
+  grid.fill(1);
+  for (const f of floors) fillShape(f, 0);
+} else {
+  // 1) 픽셀 단위 "우주 공간"(투명) 마스크
+  const voidPx = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) voidPx[i] = data[i * 4 + 3] < 128 ? 1 : 0;
+
+  // 2) 벽 마스크: 투명 영역 + 투명 영역 아래 WALL_FACE 픽셀(위쪽 벽면) + 좌/우/아래 OUTLINE 픽셀(외곽선)
+  const wallPx = new Uint8Array(W * H);
+  // 이미지 바깥도 우주 공간으로 본다 (식당 윗벽은 이미지 맨 위에 붙어 있다)
+  for (let x = 0; x < W; x++) {
+    let sinceVoid = 0;
+    for (let y = 0; y < H; y++) {
+      if (voidPx[y * W + x]) sinceVoid = 0; else sinceVoid++;
+      if (sinceVoid <= WALL_FACE) wallPx[y * W + x] = 1;
     }
-    grid[gy * GW + gx] = n * 2 >= t ? 1 : 0;
+    let untilVoid = 0; // 아래쪽 외곽선
+    for (let y = H - 1; y >= 0; y--) {
+      if (voidPx[y * W + x]) untilVoid = 0; else untilVoid++;
+      if (untilVoid <= OUTLINE) wallPx[y * W + x] = 1;
+    }
+  }
+  for (let y = 0; y < H; y++) {
+    let d = 0;
+    for (let x = 0; x < W; x++) { if (voidPx[y * W + x]) d = 0; else d++; if (d <= OUTLINE) wallPx[y * W + x] = 1; }
+    d = 0;
+    for (let x = W - 1; x >= 0; x--) { if (voidPx[y * W + x]) d = 0; else d++; if (d <= OUTLINE) wallPx[y * W + x] = 1; }
+  }
+
+  // 3) 셀 단위로 축약: 셀의 절반 이상이 벽이면 막힘
+  for (let gy = 0; gy < GH; gy++) {
+    for (let gx = 0; gx < GW; gx++) {
+      let n = 0, t = 0;
+      for (let y = gy * CELL; y < Math.min(H, (gy + 1) * CELL); y++) {
+        for (let x = gx * CELL; x < Math.min(W, (gx + 1) * CELL); x++) { t++; n += wallPx[y * W + x]; }
+      }
+      grid[gy * GW + gx] = n * 2 >= t ? 1 : 0;
+    }
   }
 }
 
@@ -101,19 +124,22 @@ const tmj = {
   type: 'map', version: '1.10', tiledversion: '1.11.0', orientation: 'orthogonal', renderorder: 'right-down', infinite: false,
   width: GW, height: GH, tilewidth: CELL, tileheight: CELL, nextlayerid: 1, nextobjectid: 1,
   properties: [
-    { name: 'mapId', type: 'string', value: 'skeld' },
+    { name: 'mapId', type: 'string', value: meta.mapId },
     { name: 'kind', type: 'string', value: 'game' },
-    { name: 'displayName', type: 'string', value: '더 스켈드' },
-    { name: 'image', type: 'string', value: 'assets/map/skeld.png' },
+    { name: 'displayName', type: 'string', value: meta.displayName },
+    { name: 'image', type: 'string', value: meta.image },
     { name: 'imageWidth', type: 'int', value: W },
     { name: 'imageHeight', type: 'int', value: H },
-    { name: 'source', type: 'string', value: 'Skeld map art by Z3_NON (via github.com/jinhyuk558/web-amongus-clone)' },
+    ...(meta.minimap ? [{ name: 'minimap', type: 'string', value: meta.minimap }] : []),
+    ...(meta.commsMode ? [{ name: 'commsMode', type: 'string', value: meta.commsMode }] : []),
+    ...(meta.reactorTime ? [{ name: 'reactorTime', type: 'int', value: meta.reactorTime }] : []),
+    { name: 'source', type: 'string', value: meta.source },
   ],
   tilesets: [{ firstgid: 1, name: 'collision', tilewidth: CELL, tileheight: CELL, tilecount: 2, columns: 2, image: 'collision-tile.png', imagewidth: CELL * 2, imageheight: CELL }],
   layers: [],
 };
 let layerId = 1;
-tmj.layers.push({ id: layerId++, type: 'imagelayer', name: 'background', image: '../../client/assets/map/skeld.png', x: 0, y: 0, opacity: 1, visible: true });
+tmj.layers.push({ id: layerId++, type: 'imagelayer', name: 'background', image: `../../client/${meta.image}`, x: 0, y: 0, opacity: 1, visible: true });
 tmj.layers.push({
   id: layerId++, type: 'tilelayer', name: 'collision', width: GW, height: GH, x: 0, y: 0, opacity: 0.5, visible: true,
   encoding: 'base64', compression: 'zlib', data: zlib.deflateSync(gids, { level: 9 }).toString('base64'),
@@ -124,11 +150,12 @@ for (const [layerName, list] of Object.entries(objects)) {
 tmj.nextlayerid = layerId;
 tmj.nextobjectid = nextId;
 fs.mkdirSync(path.join(root, 'shared/maps'), { recursive: true });
-fs.writeFileSync(path.join(root, 'shared/maps/skeld.tmj'), JSON.stringify(tmj));
-console.log(`grid ${GW}x${GH} cells of ${CELL}px, walls ${grid.filter((v) => v === 1).length}, furniture ${grid.filter((v) => v === 2).length}`);
+fs.writeFileSync(path.join(root, `shared/maps/${meta.mapId}.tmj`), JSON.stringify(tmj));
+console.log(`${meta.mapId}: grid ${GW}x${GH} cells of ${CELL}px, walls ${grid.filter((v) => v === 1).length}, furniture ${grid.filter((v) => v === 2).length}`);
 
 // 6) 디버그 오버레이
-if (process.argv.includes('--debug')) {
+if (floors) writeMinimap();
+if (process.argv.includes('--debug') && img) {
   const out = new PNG({ width: W, height: H });
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
@@ -157,6 +184,31 @@ if (process.argv.includes('--debug')) {
     }
   }
   fs.mkdirSync(path.join(root, 'tools/out'), { recursive: true });
-  fs.writeFileSync(path.join(root, 'tools/out/skeld-debug.png'), PNG.sync.write(out));
-  console.log('debug overlay: tools/out/skeld-debug.png');
+  fs.writeFileSync(path.join(root, `tools/out/${name}-debug.png`), PNG.sync.write(out));
+  console.log(`debug overlay: tools/out/${name}-debug.png`);
+}
+
+// 지도 화면용 미니맵: 원작 지도처럼 바닥은 반투명 하늘색, 테두리는 진한 선 (가로 1000px)
+function writeMinimap() {
+  const S = 1000 / W;
+  const mw = Math.round(W * S), mh = Math.round(H * S);
+  const png = new PNG({ width: mw, height: mh });
+  const walk = (x, y) => {
+    const gx = Math.floor(x / S / CELL), gy = Math.floor(y / S / CELL);
+    return gx >= 0 && gy >= 0 && gx < GW && gy < GH && grid[gy * GW + gx] !== 1;
+  };
+  for (let y = 0; y < mh; y++) {
+    for (let x = 0; x < mw; x++) {
+      const i = (y * mw + x) * 4;
+      const inside = walk(x + 0.5, y + 0.5);
+      let edge = false;
+      if (!inside) for (let d = 1; d <= 3 && !edge; d++) edge = walk(x + d, y) || walk(x - d, y) || walk(x, y + d) || walk(x, y - d);
+      const c = inside ? [96, 170, 214, 150] : edge ? [26, 52, 74, 255] : [0, 0, 0, 0];
+      png.data.set(c, i);
+    }
+  }
+  const out = path.join(root, 'client', meta.minimap);
+  fs.writeFileSync(out, PNG.sync.write(png));
+  console.log(`minimap: ${path.relative(root, out)} (${mw}x${mh})`);
+}
 }

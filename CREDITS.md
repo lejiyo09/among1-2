@@ -13,6 +13,8 @@
 | 파일 | 출처 | 비고 |
 |---|---|---|
 | `client/assets/map/skeld.png` | [jinhyuk558/web-amongus-clone](https://github.com/jinhyuk558/web-amongus-clone) `src/assets/images/ship.png` | 팬 제작 스켈드 지도, 그림 안 표기 "MAP BY Z3_NON, NO CREDIT NEEDED". 저장소는 MIT |
+| `client/assets/map/mira.webp` | itsssskye/amongus-assets `PrefabHierarchyObject/MiraShip.glb`(노드 위치) + `Sprite/*.json` + `Texture2D/*.png` | 원작 스프라이트를 원작 위치에 다시 조립 (`tools/recon/`), 1유닛=80px, WebP 변환 |
+| `client/assets/map/mira-minimap.png` | 직접 생성 | `tools/build-map.mjs` 가 충돌 바닥으로 그림 |
 | `client/assets/map/minimap.png` | [itsssskye/amongus-assets](https://github.com/itsssskye/amongus-assets) `Assets/Texture2D/map.png` | 원작 추출 미니맵 |
 | `client/assets/sprites/crewmate.png/json` | [arizkhalid/among-us-clone](https://github.com/arizkhalid/among-us-clone) `frontend/public/assets/sprites/Base` | 원작 추출 프레임(대기·걷기·사망·유령·벤트). `tools/pack-sprites.mjs` 로 1/2 축소 후 아틀라스로 묶음 |
 | `client/assets/ui/kill.png`, `report.png`, `use.png` | arizkhalid/among-us-clone `assets/icons` | |
@@ -27,7 +29,7 @@
 ## 데이터 참고
 
 - 스켈드 미션 콘솔이 있는 방, 벤트 연결 구조, 문 13개 위치, 18색 RGB 값:
-  [SkeldJS/SkeldJS](https://github.com/SkeldJS/SkeldJS) `packages/constant/lib/generated/*` 의 **수치만** 참고했다.
+  [SkeldJS/SkeldJS](https://github.com/SkeldJS/SkeldJS) `packages/constant/lib/generated/*` 의 **수치만** 참고했다 (스켈드·미라 HQ 미션 지점, 벤트 위치·연결).
   SkeldJS 는 GPL-3.0 이며, 코드는 복사하지 않았다.
 - 게임 설정 기본값(킬 쿨다운 25초, 첫 킬 10초, 회의 1회 등): 원작 기본 설정 기준.
 

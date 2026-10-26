@@ -43,7 +43,7 @@ export class SabotageSystem {
     if (now < this.cooldownUntil) return ERR.COOLDOWN;
     switch (kind) {
       case SABOTAGES.REACTOR:
-        this.active = { kind, endsAt: now + TIMINGS.reactorTime * 1000, holders: new Map() };
+        this.active = { kind, endsAt: now + (this.room.map.reactorTime ?? TIMINGS.reactorTime) * 1000, holders: new Map() };
         break;
       case SABOTAGES.O2:
         this.active = { kind, endsAt: now + TIMINGS.o2Time * 1000, code: String(randInt(100000)).padStart(5, '0'), fixed: new Set() };
@@ -56,7 +56,13 @@ export class SabotageSystem {
         break;
       }
       case SABOTAGES.COMMS:
-        this.active = { kind, target: randInt(360), dial: (randInt(360) + 180) % 360 };
+        if (this.room.map.commsMode === 'keypad') {
+          // 미라 HQ: 통신실·사무실 키패드 두 곳에 각 장치 화면에 뜬 코드를 입력해야 한다
+          const codes = Object.fromEntries(this.room.map.consoles.filter((c) => c.sabotage === kind).map((c) => [c.id, String(randInt(10000)).padStart(4, '0')]));
+          this.active = { kind, mode: 'keypad', codes, fixed: new Set() };
+        } else {
+          this.active = { kind, target: randInt(360), dial: (randInt(360) + 180) % 360 };
+        }
         break;
       default:
         return ERR.BAD_MESSAGE;
@@ -120,6 +126,13 @@ export class SabotageSystem {
         break;
       }
       case SABOTAGES.COMMS: {
+        if (a.mode === 'keypad') {
+          if (action !== 'code') return ERR.BAD_MESSAGE;
+          if (String(Math.trunc(value ?? -1)).padStart(4, '0') !== a.codes[consoleId]) return ERR.WRONG_ANSWER;
+          a.fixed.add(consoleId);
+          if (a.fixed.size >= Object.keys(a.codes).length) this.resolve(now);
+          break;
+        }
         if (action !== 'dial' || typeof value !== 'number') return ERR.BAD_MESSAGE;
         a.dial = ((Math.round(value) % 360) + 360) % 360;
         const diff = Math.abs(((a.dial - a.target + 540) % 360) - 180);
@@ -188,7 +201,8 @@ export class SabotageSystem {
     if (a.kind === SABOTAGES.REACTOR) base.held = [...a.holders.keys()];
     if (a.kind === SABOTAGES.O2) { base.code = a.code; base.fixed = [...a.fixed]; }
     if (a.kind === SABOTAGES.LIGHTS) base.switches = [...a.switches];
-    if (a.kind === SABOTAGES.COMMS) { base.target = a.target; base.dial = a.dial; }
+    if (a.kind === SABOTAGES.COMMS && a.mode === 'keypad') { base.mode = 'keypad'; base.codes = a.codes; base.fixed = [...a.fixed]; }
+    else if (a.kind === SABOTAGES.COMMS) { base.target = a.target; base.dial = a.dial; }
     return { active: base, cooldownUntil: this.cooldownUntil, doorsClosed, doorCooldowns };
   }
 }

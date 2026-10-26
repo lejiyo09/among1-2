@@ -14,12 +14,13 @@ export function loadMap(name = 'skeld') {
   return parseMap(tmj, new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
 }
 
-/** shared/maps 의 모든 .tmj 를 읽는다 → { id: 맵 } */
+/** shared/maps/index.json 에 있는 모든 맵을 읽는다 → { id: 맵 } */
 export function loadAllMaps() {
-  const dir = path.join(root, 'shared/maps');
+  // index.json 순서(원작 순서)를 따른다
+  const list = JSON.parse(fs.readFileSync(path.join(root, 'shared/maps/index.json'), 'utf8'));
   const maps = {};
-  for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.tmj')).sort()) {
-    const m = loadMap(f.replace(/\.tmj$/, ''));
+  for (const { file } of list) {
+    const m = loadMap(file.replace(/\.tmj$/, ''));
     maps[m.id] = m;
   }
   return maps;

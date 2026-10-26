@@ -1,6 +1,6 @@
 // 미션 창 공통 틀: 서버가 보낸 문제(challenge)로 미니게임을 띄우고, 끝나면 답을 서버에 제출한다
 import { h, errorText } from '../ui/dom.js';
-import { TASK_DEFS } from '../../shared/tasks.js';
+import { TASK_DEFS, gameOf } from '../../shared/tasks.js';
 import { ROOM_NAMES_KO } from '../../shared/tasks.js';
 import { play } from '../audio.js';
 import { GAMES } from './games.js';
@@ -26,7 +26,7 @@ export function closeTaskPanel(sendCancel = true) {
 export function openTask({ net, store, defId, step, spotId, challenge }) {
   closeTaskPanel(false);
   const def = TASK_DEFS[defId];
-  const game = GAMES[defId];
+  const game = GAMES[gameOf(defId, step)];
   const spot = store.map.tasks.find((s) => s.id === spotId);
   const startedAt = performance.now();
   const msg = h('div', { class: 'task-msg' });

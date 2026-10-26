@@ -26,13 +26,19 @@
       align: () => ({ start: 0.7 }),
       calibrate: () => ({ speeds: [1, 2, 3] }),
       steering: () => ({ start: [60, -50] }),
+      idcode: () => ({ code: String(Math.floor(Math.random() * 100000)).padStart(5, '0') }),
+      beverage: () => ({ drink: Math.floor(Math.random() * 12) }),
+      diagnostics: () => ({ anomaly: Math.floor(Math.random() * 4) }),
+      samples: () => ({ kinds: Array.from({ length: 6 }, () => Math.floor(Math.random() * 3)) }),
     };
+    challenge.divertMira = challenge.divert;
     window.submitted = [];
     const fakeNet = { request: async (t, d) => { window.submitted.push({ t, ...d, at: performance.now() }); return { ok: true }; }, send() {} };
-    const fakeStore = { map: { tasks: [{ id: 'x', room: 'Admin' }] }, player: () => ({ name: '테스트' }), playerId: 'p1' };
+    const params = new URLSearchParams(location.search);
+    const fakeStore = { map: { id: params.get('map') ?? (TASK_DEFS[params.get('game')]?.maps?.[0] ?? 'skeld'), tasks: [{ id: 'x', room: 'Admin' }] }, player: () => ({ name: '테스트' }), playerId: 'p1' };
     const game = new URLSearchParams(location.search).get('game') ?? 'wires';
     document.getElementById('pick').append(...Object.keys(TASK_DEFS).map((g) => h('a', { class: 'btn small', href: `dev/tasks.html?game=${g}` }, g)));
-    window.challenge = challenge[game]?.() ?? {};
+    window.challenge = (challenge[game] ?? challenge[TASK_DEFS[game]?.game])?.() ?? {};
     window.openedAt = performance.now();
     openTask({ net: fakeNet, store: fakeStore, defId: game, step: Number(new URLSearchParams(location.search).get('step') ?? 0), spotId: 'x', challenge: window.challenge });
   </script>

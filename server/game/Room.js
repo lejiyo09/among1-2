@@ -12,6 +12,7 @@ import { stepMovement, dirFacing, DIR_NONE } from '../../shared/movement.js';
 import { assignRoles, tallyVotes, checkWin } from './rules.js';
 import { createTaskAssigner, makeChallenge, validateAnswer, minDurationFor } from './tasks.js';
 import { SabotageSystem } from './sabotage.js';
+import { gameOf, DIVERT_TARGETS } from '../../shared/tasks.js';
 
 const INPUT_QUEUE_MAX = 45;      // 1.5초 분량. 이보다 많이 쌓이면(비정상) 오래된 것부터 버린다
 const INPUT_CREDIT_MAX = 15;     // 지연 후 몰려온 입력을 따라잡을 수 있는 최대 틱 수 (0.5초)
@@ -131,14 +132,14 @@ export class Room {
     this.markDirty();
   }
 
-  spawnPoint(i) {
-    const s = this.map.spawn;
+  spawnPoint(i, start = false) {
+    const s = start && this.map.startSpawn?.length ? this.map.startSpawn : this.map.spawn;
     return s[i % s.length];
   }
 
-  placeAtSpawns(list) {
+  placeAtSpawns(list, start = false) {
     list.forEach((p, i) => {
-      const s = this.spawnPoint(i);
+      const s = this.spawnPoint(i, start);
       p.x = s.x; p.y = s.y; p.moving = false; p.inputQueue = []; p.queuedSeq = p.lastSeq;
     });
   }
@@ -404,7 +405,7 @@ export class Room {
     this.emergencyReadyAt = now + this.settings.emergencyCooldown * 1000;
     this.setPhase(PHASES.STARTING, TIMINGS.roleRevealMs); // 이 시점부터 this.map 은 게임 맵
     for (const d of this.map.doors) this.world.setDoorClosed(d.id, false);
-    this.placeAtSpawns(list);
+    this.placeAtSpawns(list, true);
     for (const o of list) {
       const team = o.role === ROLES.IMPOSTOR ? list.filter((x) => x.role === ROLES.IMPOSTOR).map((x) => x.id) : [o.id];
       this.send(o, { t: 'fx', kind: 'roleReveal', role: o.role, team, impostorCount: [...roles.values()].filter((r) => r === ROLES.IMPOSTOR).length });
@@ -432,7 +433,13 @@ export class Room {
     const spotId = task.spots[task.step];
     const spot = this.map.tasks.find((s) => s.id === spotId);
     if (Math.hypot(p.x - spot.x, p.y - spot.y) > USE_RANGE) return ERR.OUT_OF_RANGE;
-    const challenge = makeChallenge(defId);
+    const challenge = makeChallenge(gameOf(defId, task.step));
+    // 미라 HQ 전력 우회: 다음 단계("전력 받기")가 있는 방의 스위치를 올려야 한다
+    const next = this.map.tasks.find((s) => s.id === task.spots[task.step + 1]);
+    if (gameOf(defId, task.step) === 'divert' && next) {
+      const i = (DIVERT_TARGETS[this.map.id] ?? []).indexOf(next.room);
+      if (i >= 0) challenge.target = i;
+    }
     p.activeTask = { defId, step: task.step, spotId, startedAt: this.now(), challenge };
     p.inputQueue = [];
     if (defId === 'scan' && this.settings.visualTasks && p.alive) p.scanning = true;
@@ -447,7 +454,7 @@ export class Room {
     if (now - a.startedAt < minDurationFor(defId, answer)) return ERR.TOO_FAST;
     const spot = this.map.tasks.find((s) => s.id === a.spotId);
     if (Math.hypot(p.x - spot.x, p.y - spot.y) > USE_RANGE * 1.25) return ERR.OUT_OF_RANGE;
-    if (!validateAnswer(defId, a.challenge, answer)) {
+    if (!validateAnswer(gameOf(defId, a.step), a.challenge, answer)) {
       p.activeTask = null;
       p.scanning = false;
       return ERR.WRONG_ANSWER;
