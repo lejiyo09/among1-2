@@ -19,11 +19,11 @@ export const obstacles = [
   { ellipse: [1915, 506, 108, 68] },
   { ellipse: [1705, 720, 108, 68] },
   { ellipse: [2120, 720, 108, 68] },
-  // 상부/하부 엔진 본체
-  { poly: [[470, 440], [660, 440], [660, 600], [438, 600], [438, 540]] },
-  { poly: [[470, 1475], [660, 1475], [660, 1632], [438, 1632], [438, 1575]] },
-  // 원자로 노심
-  { rect: [0, 880, 228, 1200] },
+  // 상부/하부 엔진 본체 (skeld-objects.webp 에 그린 원작 엔진 스프라이트 범위, 왼쪽 아래는 연료·정렬 콘솔 상자)
+  { poly: [[368, 445], [675, 445], [675, 625], [461, 625], [461, 679], [368, 679]] },
+  { poly: [[370, 1425], [677, 1425], [677, 1605], [463, 1605], [463, 1652], [370, 1652]] },
+  // 원자로 노심과 받침 (원작 스프라이트)
+  { rect: [0, 860, 200, 1270] },
   // 의무실 침대 4개
   { rect: [1046, 662, 1146, 752] }, { rect: [1046, 770, 1146, 856] },
   { rect: [1300, 662, 1398, 752] }, { rect: [1300, 770, 1398, 856] },
@@ -50,6 +50,16 @@ export const obstacles = [
 
 // 자동 판정이 막았지만 실제로는 지나갈 수 있는 곳 (필요할 때만 추가)
 export const openings = [];
+
+/**
+ * 원작 오브젝트 레이어 (tools/recon/overlay.py 로 생성): 원작 SkeldShip 프리팹의 노드 위치에 원작 스프라이트를 놓고
+ * 벤트·비상 버튼 15곳으로 맞춘 변환(X = 98.9u + 1977.9, Y = -94.5v + 609.7)으로 이 그림 좌표에 옮겼다.
+ * back: 선체 바깥(추진기, 무기 포신, 방어막) — 배 그림 뒤 / front: 방 안 기계 — 배 그림 위, 플레이어 아래
+ */
+export const LAYERS = [
+  { image: 'assets/map/skeld-hull.webp', x: -315, y: 390, depth: 'back' },
+  { image: 'assets/map/skeld-objects.webp', x: 9, y: 417, depth: 'front' },
+];
 
 const task = (name, taskType, x, y, extra = {}) => ({ name, type: 'task', x, y, props: { taskType, room: extra.room ?? '', ...extra.props } });
 
@@ -92,11 +102,11 @@ export const objects = {
     task('card_admin', 'card', 2535, 1290, { room: 'Admin' }),
     // 긴 미션
     task('asteroids_weapons', 'asteroids', 2765, 470, { room: 'Weapons' }),
-    task('align_upper', 'align', 395, 640, { room: 'UpperEngine' }),
-    task('align_lower', 'align', 395, 1660, { room: 'LowerEngine' }),
+    task('align_upper', 'align', 430, 650, { room: 'UpperEngine' }),
+    task('align_lower', 'align', 400, 1630, { room: 'LowerEngine' }),
     task('fuel_storage', 'fuel', 1595, 1500, { room: 'Storage' }),
-    task('fuel_upper', 'fuel', 400, 470, { room: 'UpperEngine' }),
-    task('fuel_lower', 'fuel', 400, 1500, { room: 'LowerEngine' }),
+    task('fuel_upper', 'fuel', 467, 640, { room: 'UpperEngine' }),
+    task('fuel_lower', 'fuel', 469, 1610, { room: 'LowerEngine' }),
     task('scan_medbay', 'scan', 1345, 985, { room: 'MedBay' }),
     task('reactor_start', 'simon', 255, 1040, { room: 'Reactor' }),
     task('garbage_cafeteria', 'garbage', 2285, 235, { room: 'Cafeteria' }),

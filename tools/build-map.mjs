@@ -20,7 +20,7 @@ for (const name of names.length ? names : ['skeld', 'mira']) {
   build(name, cfg);
 }
 
-function build(name, { CELL, WALL_FACE, OUTLINE, obstacles, openings, objects, floors, META, WIDTH, HEIGHT }) {
+function build(name, { CELL, WALL_FACE, OUTLINE, obstacles, openings, objects, floors, META, WIDTH, HEIGHT, LAYERS }) {
 const meta = META ?? {
   mapId: 'skeld', displayName: '더 스켈드', image: 'assets/map/skeld.png',
   source: 'Skeld map art by Z3_NON (via github.com/jinhyuk558/web-amongus-clone)',
@@ -133,6 +133,7 @@ const tmj = {
     ...(meta.minimap ? [{ name: 'minimap', type: 'string', value: meta.minimap }] : []),
     ...(meta.commsMode ? [{ name: 'commsMode', type: 'string', value: meta.commsMode }] : []),
     ...(meta.reactorTime ? [{ name: 'reactorTime', type: 'int', value: meta.reactorTime }] : []),
+    ...(LAYERS?.length ? [{ name: 'layers', type: 'string', value: JSON.stringify(LAYERS) }] : []),
     { name: 'source', type: 'string', value: meta.source },
   ],
   tilesets: [{ firstgid: 1, name: 'collision', tilewidth: CELL, tileheight: CELL, tilecount: 2, columns: 2, image: 'collision-tile.png', imagewidth: CELL * 2, imageheight: CELL }],

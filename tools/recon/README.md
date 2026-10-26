@@ -22,3 +22,18 @@ ALIAS=alias_mira.json python3 render.py MiraShip.glb texmap_mira.json mira_full.
 - 할로윈 장식 노드는 그리지 않음
 
 남은 차이: 반복 무늬 바닥(WoodHall/CarpetHall 재질)과 애니메이션(원자로 빛, 벤트 등)은 들어 있지 않다.
+
+## 스켈드 원작 오브젝트 레이어
+
+스켈드는 추출 자료에 방 바닥 그림 대부분이 없어 통째로 조립할 수 없다. 그래서 바닥·벽은 팬아트(Z3_NON) 그림을 그대로 쓰고,
+그 그림에 빠진 원작 오브젝트만 원작 스프라이트로 덧그린다 (`client/assets/map/skeld-objects.webp`, `skeld-hull.webp`).
+
+- 위치: 원작 `SkeldShip.glb` 노드 위치를 벤트 14곳 + 비상 버튼으로 최소제곱 맞춘 변환으로 옮김 (`X = 98.9u + 1977.9`, `Y = -94.5v + 609.7`, 평균 오차 약 20px)
+- 방별 미세 보정: `roomoff_skeld.json`, 애니메이션 노드 → 첫 프레임 스프라이트: `alias_skeld.json`
+- 그린 것: 상·하부 엔진 본체와 난간, 원자로 노심·받침·배관·전선, 보안실 서버, 의무실 스캐너, 산소 탱크, 관리실 지도 홀로그램·화면, 비상 버튼, 복도 감시 카메라, 선체 바깥 추진기·무기 포신·방어막 (뒤 레이어)
+
+```sh
+ROOMOFF=roomoff_skeld.json ALIAS=alias_skeld.json python3 overlay.py SkeldShip.glb texmap_skeld.json front.png "$(cat skeld_front_nodes.txt)"
+ROOMOFF=roomoff_skeld.json ALIAS=alias_skeld.json python3 overlay.py SkeldShip.glb texmap_skeld.json back.png '/HullItems/'
+# 각각 투명 테두리를 잘라 WebP 로 저장하고, 잘린 위치를 tools/skeld-objects.mjs 의 LAYERS 에 적는다
+```

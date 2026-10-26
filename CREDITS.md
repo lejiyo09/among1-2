@@ -13,6 +13,7 @@
 | 파일 | 출처 | 비고 |
 |---|---|---|
 | `client/assets/map/skeld.png` | [jinhyuk558/web-amongus-clone](https://github.com/jinhyuk558/web-amongus-clone) `src/assets/images/ship.png` | 팬 제작 스켈드 지도, 그림 안 표기 "MAP BY Z3_NON, NO CREDIT NEEDED". 저장소는 MIT |
+| `client/assets/map/skeld-objects.webp`, `skeld-hull.webp` | itsssskye/amongus-assets `PrefabHierarchyObject/SkeldShip.glb`(노드 위치) + 원작 스프라이트 (`Engine_0`, `ReactorRoom`, `Security_1`, `LifeSupport`, `Hull_0`, `Animations`, `HQAssets`(의무실 스캐너), `PlanetSprites`(카메라·비상 버튼) 등) | 팬아트 스켈드 위에 빠진 원작 오브젝트를 원작 위치로 덧그림 (`tools/recon/overlay.py`). 원작 방 배치 참고: oskarkraak/Among-Us-Maps 의 방 스크린샷(참고만, 파일은 쓰지 않음) |
 | `client/assets/map/mira.webp` | itsssskye/amongus-assets `PrefabHierarchyObject/MiraShip.glb`(노드 위치) + `Sprite/*.json` + `Texture2D/*.png` | 원작 스프라이트를 원작 위치에 다시 조립 (`tools/recon/`), 1유닛=80px, WebP 변환 |
 | `client/assets/map/mira-minimap.png` | 직접 생성 | `tools/build-map.mjs` 가 충돌 바닥으로 그림 |
 | `client/assets/map/minimap.png` | [itsssskye/amongus-assets](https://github.com/itsssskye/amongus-assets) `Assets/Texture2D/map.png` | 원작 추출 미니맵 |

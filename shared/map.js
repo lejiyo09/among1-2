@@ -56,6 +56,8 @@ export function parseMap(tmj, collisionBytes) {
     commsMode: mapProps.commsMode ?? 'dial',
     reactorTime: mapProps.reactorTime ?? null, // 원자로 붕괴 제한 시간(초). 없으면 TIMINGS.reactorTime
     minimap: mapProps.minimap ?? null,
+    /** 배경 위/아래에 겹쳐 그리는 그림 [{image, x, y, depth:'back'|'front'}] */
+    layers: mapProps.layers ? JSON.parse(mapProps.layers) : [],
     emergency: layer('emergency').map((o) => ({ x: o.x, y: o.y, range: props(o).range ?? 170 }))[0],
     tasks: layer('tasks').map((o) => ({ id: o.name, taskType: props(o).taskType, room: props(o).room || roomAt(o.x, o.y), x: o.x, y: o.y })),
     vents: layer('vents').map((o) => ({ id: o.name, x: o.x, y: o.y, links: String(props(o).links ?? '').split(',').filter(Boolean), room: roomAt(o.x, o.y) })),

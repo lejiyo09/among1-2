@@ -25,7 +25,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   preload() {
-    for (const m of Object.values(this.ctx.store.maps)) this.load.image(`map_${m.id}`, m.image);
+    for (const m of Object.values(this.ctx.store.maps)) {
+      this.load.image(`map_${m.id}`, m.image);
+      // 원작 오브젝트 레이어 (스켈드: 선체 바깥 / 방 안 기계)
+      m.layers.forEach((l, i) => this.load.image(`layer_${m.id}_${i}`, l.image));
+    }
     this.load.image('ventgrate', 'assets/ui/ventgrate.png');
     this.load.image('door_v', 'assets/ui/door_v.png');
     this.load.image('door_h', 'assets/ui/door_h.png');
@@ -81,6 +85,8 @@ export class GameScene extends Phaser.Scene {
     this.builtMapId = map.id;
     const add = (o) => { this.mapObjects.push(o); return o; };
     add(this.add.image(0, 0, `map_${map.id}`).setOrigin(0, 0).setDisplaySize(map.width, map.height).setDepth(-10));
+    // back: 배 그림 뒤(선체 추진기 등), front: 배 그림 위·캐릭터 아래(엔진, 원자로 노심, 스캐너 등)
+    map.layers.forEach((l, i) => add(this.add.image(l.x, l.y, `layer_${map.id}_${i}`).setOrigin(0, 0).setDepth(l.depth === 'back' ? -11 : -9)));
     // 벤트 (스켈드 그림에는 없어서 원작 스프라이트로 그린다)
     for (const v of map.vents) add(this.add.image(v.x, v.y, 'ventgrate').setScale(1.1).setDepth(-5));
     // 문
@@ -307,10 +313,18 @@ export class GameScene extends Phaser.Scene {
     const g = this.taskMarkers;
     g.clear();
     const you = st.you;
-    if (!you?.tasks || st.phase !== PHASES.PLAYING || you.fake) return;
+    if (st.phase !== PHASES.PLAYING || !you) return;
     const t = this.time.now / 400;
+    // 원작: 사용할 수 있는 거리에 들어온 미션 콘솔·수리 장치·비상 버튼은 노란 테두리로 빛난다
+    const use = this.targets?.use;
+    const hot = use?.kind === 'task' ? use.spot : use?.kind === 'fix' ? use.console : use?.kind === 'emergency' ? this.ctx.store.map.emergency : null;
+    if (hot) {
+      g.lineStyle(10, 0xffe14d, 0.25).strokeCircle(hot.x, hot.y, 30);
+      g.lineStyle(4, 0xffe14d, 1).strokeCircle(hot.x, hot.y, 30);
+    }
+    if (!you.tasks || you.fake) return;
     for (const task of you.tasks) {
-      if (task.done || !task.spot) continue;
+      if (task.done || !task.spot || task.spot === hot?.id) continue;
       const spot = this.ctx.store.map.tasks.find((s) => s.id === task.spot);
       if (!spot) continue;
       g.lineStyle(4, 0xffe14d, 0.6 + Math.sin(t) * 0.3).strokeCircle(spot.x, spot.y, 22 + Math.sin(t) * 3);
