@@ -182,6 +182,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     store.update(delta, dir);
+    store.advanceRenderClock(delta);
     const me = store.player(store.playerId);
     const you = store.you;
     const ghostView = !!you && !you.alive && st.phase !== PHASES.LOBBY;

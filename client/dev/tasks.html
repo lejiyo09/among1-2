@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>미션 미니게임 테스트</title>
+  <base href="../">
+  <link rel="stylesheet" href="css/style.css">
+  <style>body { overflow: auto; } #pick { position: fixed; top: 8px; left: 8px; z-index: 100; display: flex; gap: 4px; flex-wrap: wrap; max-width: 98vw; }</style>
+</head>
+<body>
+  <div id="ui"></div>
+  <div id="pick"></div>
+  <script type="module">
+    // 개발용: 서버 없이 미니게임 하나를 띄워 조작해 볼 수 있다. ?game=wires
+    import { openTask } from './js/tasks/index.js';
+    import { TASK_DEFS, WIRE_COLORS } from './shared/tasks.js';
+    import { h } from './js/ui/dom.js';
+    const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+    const challenge = {
+      wires: () => ({ left: shuffle(WIRE_COLORS), right: shuffle(WIRE_COLORS) }),
+      manifolds: () => ({ labels: shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) }),
+      simon: () => ({ seq: Array.from({ length: 5 }, () => Math.floor(Math.random() * 9)) }),
+      shields: () => ({ off: shuffle([0, 1, 2, 3, 4, 5, 6]).slice(0, 4).sort() }),
+      divert: () => ({ target: Math.floor(Math.random() * 8) }),
+      align: () => ({ start: 0.7 }),
+      calibrate: () => ({ speeds: [1, 2, 3] }),
+      steering: () => ({ start: [60, -50] }),
+    };
+    window.submitted = [];
+    const fakeNet = { request: async (t, d) => { window.submitted.push({ t, ...d, at: performance.now() }); return { ok: true }; }, send() {} };
+    const fakeStore = { map: { tasks: [{ id: 'x', room: 'Admin' }] }, player: () => ({ name: '테스트' }), playerId: 'p1' };
+    const game = new URLSearchParams(location.search).get('game') ?? 'wires';
+    document.getElementById('pick').append(...Object.keys(TASK_DEFS).map((g) => h('a', { class: 'btn small', href: `dev/tasks.html?game=${g}` }, g)));
+    window.challenge = challenge[game]?.() ?? {};
+    window.openedAt = performance.now();
+    openTask({ net: fakeNet, store: fakeStore, defId: game, step: Number(new URLSearchParams(location.search).get('step') ?? 0), spotId: 'x', challenge: window.challenge });
+  </script>
+</body>
+</html>

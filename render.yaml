@@ -1,0 +1,19 @@
+# Render 블루프린트: Render 대시보드 → New → Blueprint → 이 저장소 선택
+# 정적 파일과 WebSocket 서버가 한 서비스에서 같이 돌아간다.
+services:
+  - type: web
+    name: among1-2
+    runtime: node
+    plan: free
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: LOG_LEVEL
+        value: info
+      # 원작 최소 인원은 4명. 친구 2~3명이 시험해 볼 때만 2로 낮춘다
+      - key: MIN_PLAYERS
+        value: "4"

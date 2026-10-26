@@ -191,6 +191,7 @@ function asteroids(stage, ctx) {
       }
     }
   });
+  s.canvas.__debug = () => rocks.filter((r) => !r.dead);
   s.loop((dt) => {
     spawn -= dt;
     if (spawn <= 0 && !done) { spawn = 450; rocks.push({ x: W + 30, y: 60 + Math.random() * (H - 120), vx: -(70 + Math.random() * 90), vy: (Math.random() - 0.5) * 60, r: 18 + Math.random() * 14, a: 0 }); }
@@ -360,6 +361,7 @@ function calibrate(stage, ctx) {
   let cur = 0;
   const locked = [false, false, false];
   const zone = -Math.PI / 2;
+  s.canvas.__debug = () => ({ ang, cur, zone });
   s.canvas.addEventListener('pointerdown', (e) => {
     const p = s.toLocal(e);
     if (cur > 2 || p.x < 360) return;
@@ -451,6 +453,7 @@ function o2filter(stage, ctx) {
   const s = canvasStage(stage, W, H);
   const leaves = Array.from({ length: 6 }, () => ({ x: 200 + Math.random() * 240, y: 50 + Math.random() * 280, a: Math.random() * 6, gone: false }));
   let held = null, done = false;
+  s.canvas.__debug = () => leaves.filter((l) => !l.gone);
   drag(s.canvas, s.toLocal, {
     down: (p) => { held = leaves.find((l) => !l.gone && Math.hypot(l.x - p.x, l.y - p.y) < 34) ?? null; return !!held; },
     move: (p) => { held.x = p.x; held.y = p.y; },

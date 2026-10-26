@@ -202,12 +202,27 @@ export class Store {
     this.outbox = [];
   }
 
+  /**
+   * 보간용 화면 시계. 서버 시각(최근 스냅샷 + 경과) - 지연 을 목표로, 실제 시간으로 흐르되 조금씩 맞춘다.
+   * 네트워크가 잠깐 멈췄다가 스냅샷이 몰려와도 다른 플레이어가 순간이동하지 않고 빨리 감기로 따라잡는다.
+   */
+  advanceRenderClock(dtMs) {
+    if (this.serverTick === undefined) return;
+    const target = this.serverTick * TICK_MS + (performance.now() - this.serverTickAt) - INTERP_DELAY_MS;
+    if (this.renderT === undefined || Math.abs(target - this.renderT) > 1500) { this.renderT = target; return; }
+    this.renderT += dtMs;
+    const diff = target - this.renderT;
+    // 최대 1.6배 속도로 따라잡기 / 0.6배로 늦추기
+    this.renderT += Math.max(-0.4 * dtMs, Math.min(0.6 * dtMs, diff * 0.15));
+    // 받은 데이터보다 앞서 가지 않는다 (멈췄던 동안 앞서 가 있으면 데이터가 몰려올 때 순간이동처럼 보임)
+    this.renderT = Math.min(this.renderT, this.serverTick * TICK_MS);
+  }
+
   /** 다른 플레이어의 보간된 위치 */
   remotePos(id) {
     const r = this.remotes.get(id);
     if (!r || !r.samples.length) return null;
-    const elapsed = performance.now() - (this.serverTickAt ?? 0);
-    const renderT = (this.serverTick ?? 0) * TICK_MS + elapsed - INTERP_DELAY_MS;
+    const renderT = this.renderT ?? (this.serverTick ?? 0) * TICK_MS - INTERP_DELAY_MS;
     const s = r.samples;
     if (renderT <= s[0].t) return s[0];
     for (let i = s.length - 1; i >= 0; i--) {

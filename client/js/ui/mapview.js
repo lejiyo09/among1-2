@@ -36,6 +36,7 @@ export class MapView {
     const st = this.store.state;
     if (!st || st.phase !== PHASES.PLAYING) return;
     if (mode === 'sabotage' && st.you?.role !== ROLES.IMPOSTOR) return;
+    if (this.mode !== mode) this.builtFor = null;
     this.mode = mode;
     this.el.classList.remove('hidden');
     this.el.classList.toggle('sabotage', mode === 'sabotage');
@@ -50,18 +51,43 @@ export class MapView {
 
   close() {
     this.mode = null;
+    this.builtFor = null;
     clearInterval(this.timer);
     this.el.classList.add('hidden');
+  }
+
+  /** 방 이름과 사보타주 버튼은 열 때 한 번만 만든다 (계속 다시 만들면 클릭이 씹힌다) */
+  build() {
+    const labels = this.store.map.rooms.map((r) => {
+      const [x0, y0, x1, y1] = r.rect;
+      return h('div', { class: 'map-label', style: toMap((x0 + x1) / 2, (y0 + y1) / 2 - 40) }, ROOM_NAMES_KO[r.name]);
+    });
+    this.saboButtons = [];
+    if (this.mode === 'sabotage') {
+      for (const s of SABOTAGES) {
+        const r = this.store.map.rooms.find((x) => x.name === s.room);
+        const [x0, y0, x1, y1] = r.rect;
+        const b = h('button', { class: 'map-sabo', title: s.title, style: toMap((x0 + x1) / 2, (y0 + y1) / 2 + 30), onclick: () => this.sabotage(s.kind) }, s.icon);
+        b.dataset.kind = s.kind;
+        this.saboButtons.push(b);
+      }
+      for (const room of DOOR_ROOMS) {
+        const r = this.store.map.rooms.find((x) => x.name === room);
+        const [x0, y0, x1, y1] = r.rect;
+        const b = h('button', { class: 'map-sabo door', title: `${ROOM_NAMES_KO[room]} 문 닫기`, style: toMap((x0 + x1) / 2 + 70, (y0 + y1) / 2 + 30), onclick: () => this.sabotage('doors', room) }, '🚪');
+        b.dataset.room = room;
+        this.saboButtons.push(b);
+      }
+    }
+    this.dynamic = h('div', {});
+    this.layer.replaceChildren(...labels, ...this.saboButtons, this.dynamic);
   }
 
   render() {
     const st = this.store.state;
     if (!st || st.phase !== PHASES.PLAYING) { this.close(); return; }
+    if (this.builtFor !== this.mode) { this.build(); this.builtFor = this.mode; }
     const items = [];
-    for (const r of this.store.map.rooms) {
-      const [x0, y0, x1, y1] = r.rect;
-      items.push(h('div', { class: 'map-label', style: toMap((x0 + x1) / 2, (y0 + y1) / 2 - 40) }, ROOM_NAMES_KO[r.name]));
-    }
     const you = st.you;
     const commsDown = st.sabotage?.active?.kind === 'comms';
     if (this.mode === 'map' && you?.tasks && !commsDown && !you.fake) {
@@ -77,25 +103,16 @@ export class MapView {
         items.push(h('div', { class: 'map-task', style: { ...toMap(c.x, c.y), color: '#ff3030' } }, '⚠'));
       }
     }
-    if (this.mode === 'sabotage') {
-      const now = this.net.serverNow();
-      const busy = !!sab || now < (st.sabotage?.cooldownUntil ?? 0);
-      for (const s of SABOTAGES) {
-        const r = this.store.map.rooms.find((x) => x.name === s.room);
-        const [x0, y0, x1, y1] = r.rect;
-        items.push(h('button', { class: 'map-sabo', title: s.title, disabled: busy, style: toMap((x0 + x1) / 2, (y0 + y1) / 2 + 30), onclick: () => this.sabotage(s.kind) }, s.icon));
-      }
-      for (const room of DOOR_ROOMS) {
-        const r = this.store.map.rooms.find((x) => x.name === room);
-        const [x0, y0, x1, y1] = r.rect;
-        const cd = (st.sabotage?.doorCooldowns?.[room] ?? 0) > now;
-        items.push(h('button', { class: 'map-sabo door', title: `${ROOM_NAMES_KO[room]} 문 닫기`, disabled: cd, style: toMap((x0 + x1) / 2 + 70, (y0 + y1) / 2 + 30), onclick: () => this.sabotage('doors', room) }, '🚪'));
-      }
+    // 버튼 활성 상태만 갱신
+    const now = this.net.serverNow();
+    const busy = !!sab || now < (st.sabotage?.cooldownUntil ?? 0);
+    for (const b of this.saboButtons) {
+      b.disabled = b.dataset.room ? (st.sabotage?.doorCooldowns?.[b.dataset.room] ?? 0) > now : busy;
     }
     // 내 위치
     const me = this.store.player(this.store.playerId);
     if (me) items.push(h('div', { class: 'map-dot', style: { ...toMap(this.store.me.x, this.store.me.y), background: getComputedColor(me.color) } }));
-    this.layer.replaceChildren(...items);
+    this.dynamic.replaceChildren(...items);
   }
 
   async sabotage(kind, room) {

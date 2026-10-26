@@ -23,22 +23,23 @@ for (let i = 0; i < W * H; i++) voidPx[i] = data[i * 4 + 3] < 128 ? 1 : 0;
 
 // 2) 벽 마스크: 투명 영역 + 투명 영역 아래 WALL_FACE 픽셀(위쪽 벽면) + 좌/우/아래 OUTLINE 픽셀(외곽선)
 const wallPx = new Uint8Array(W * H);
+// 이미지 바깥도 우주 공간으로 본다 (식당 윗벽은 이미지 맨 위에 붙어 있다)
 for (let x = 0; x < W; x++) {
-  let sinceVoid = Infinity;
+  let sinceVoid = 0;
   for (let y = 0; y < H; y++) {
     if (voidPx[y * W + x]) sinceVoid = 0; else sinceVoid++;
     if (sinceVoid <= WALL_FACE) wallPx[y * W + x] = 1;
   }
-  let untilVoid = Infinity; // 아래쪽 외곽선
+  let untilVoid = 0; // 아래쪽 외곽선
   for (let y = H - 1; y >= 0; y--) {
     if (voidPx[y * W + x]) untilVoid = 0; else untilVoid++;
     if (untilVoid <= OUTLINE) wallPx[y * W + x] = 1;
   }
 }
 for (let y = 0; y < H; y++) {
-  let d = Infinity;
+  let d = 0;
   for (let x = 0; x < W; x++) { if (voidPx[y * W + x]) d = 0; else d++; if (d <= OUTLINE) wallPx[y * W + x] = 1; }
-  d = Infinity;
+  d = 0;
   for (let x = W - 1; x >= 0; x--) { if (voidPx[y * W + x]) d = 0; else d++; if (d <= OUTLINE) wallPx[y * W + x] = 1; }
 }
 

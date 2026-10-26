@@ -94,7 +94,8 @@ export function createServer(manager) {
       if (isBinary) { conn.send({ t: 'error', code: ERR.BAD_MESSAGE, message: 'binary not supported' }); return; }
       onMessage(manager, conn, data.toString());
     });
-    ws.on('close', () => {
+    ws.on('close', (code, reason) => {
+      log.debug(`ws closed conn=${conn.id} code=${code} ${reason}`);
       const n = (perIp.get(ip) ?? 1) - 1;
       if (n <= 0) perIp.delete(ip); else perIp.set(ip, n);
       try { manager.onClose(conn); } catch (err) { log.error('onClose failed', err.stack); }

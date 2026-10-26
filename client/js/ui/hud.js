@@ -135,7 +135,8 @@ export class Hud {
 
     // 사보타주 경보
     const alarm = !!sab && (sab.kind === 'reactor' || sab.kind === 'o2');
-    this.saboAlert.classList.toggle('hidden', !sab);
+    // 원작: 붉은 경보 화면은 위급 사보타주(원자로·산소)에서만
+    this.saboAlert.classList.toggle('hidden', !alarm);
     loop('sabotageAlarm', alarm && st.phase === PHASES.PLAYING, 0.35);
     if (!sab) closeFixPanel();
     if (st.phase !== PHASES.PLAYING) { closeTaskPanel(); closeFixPanel(); }

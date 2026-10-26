@@ -13,7 +13,9 @@ import { assignRoles, tallyVotes, checkWin } from './rules.js';
 import { createTaskAssigner, makeChallenge, validateAnswer, minDurationFor } from './tasks.js';
 import { SabotageSystem } from './sabotage.js';
 
-const INPUT_QUEUE_MAX = 8;
+const INPUT_QUEUE_MAX = 45;      // 1.5초 분량. 이보다 많이 쌓이면(비정상) 오래된 것부터 버린다
+const INPUT_CREDIT_MAX = 15;     // 지연 후 몰려온 입력을 따라잡을 수 있는 최대 틱 수 (0.5초)
+const INPUTS_PER_TICK_MAX = 3;
 const SNAPSHOT_EVERY = Math.round(TICK_RATE / SNAPSHOT_RATE);
 const KILL_TOLERANCE = 1.1;    // 네트워크 지연 보정용 10% 여유
 const CHAT_INTERVAL_MS = 700;
@@ -273,8 +275,8 @@ export class Room {
       p.queuedSeq = seq;
       p.inputQueue.push({ seq, d });
     });
-    // 실제 시간보다 빠르게 보내는 입력(스피드핵)은 큐가 넘치면 버린다 → 클라이언트는 서버 위치로 보정된다
-    if (p.inputQueue.length > INPUT_QUEUE_MAX) p.inputQueue.splice(0, p.inputQueue.length - INPUT_QUEUE_MAX / 2);
+    // 비정상적으로 많이 쌓인 입력은 버린다 → 클라이언트는 서버 위치로 보정된다
+    if (p.inputQueue.length > INPUT_QUEUE_MAX) p.inputQueue.splice(0, p.inputQueue.length - INPUT_QUEUE_MAX);
     return null;
   }
 
@@ -698,17 +700,24 @@ export class Room {
       }
     }
 
-    // 2) 이동 (플레이어당 틱마다 입력 1개)
+    // 2) 이동: 입력 1개 = 1틱 이동. 틱마다 크레딧이 1씩 쌓이고(최대 15) 입력 하나에 1씩 쓴다.
+    //    지연으로 몰려온 입력은 쌓인 크레딧만큼 따라잡지만, 장기적으로는 실제 시간보다 빨리 움직일 수 없다 (스피드핵 방지)
     for (const p of this.players.values()) {
-      const input = p.inputQueue.shift();
-      if (!input) { p.moving = false; continue; }
-      p.lastSeq = input.seq;
-      if (!this.canMove(p) || input.d === DIR_NONE) { p.moving = false; continue; }
-      const ghost = p.inGame && !p.alive && this.phase === PHASES.PLAYING;
-      stepMovement(p, input.d, { world: this.world, speedMul: this.settings.playerSpeed, ghost });
-      p.moving = true;
-      const f = dirFacing(input.d);
-      if (f) p.facing = f;
+      p.inputCredit = Math.min(INPUT_CREDIT_MAX, (p.inputCredit ?? 0) + 1);
+      let processed = 0;
+      while (p.inputQueue.length && p.inputCredit >= 1 && processed < INPUTS_PER_TICK_MAX) {
+        const input = p.inputQueue.shift();
+        p.inputCredit--;
+        processed++;
+        p.lastSeq = input.seq;
+        if (!this.canMove(p) || input.d === DIR_NONE) { p.moving = false; continue; }
+        const ghost = p.inGame && !p.alive && this.phase === PHASES.PLAYING;
+        stepMovement(p, input.d, { world: this.world, speedMul: this.settings.playerSpeed, ghost });
+        p.moving = true;
+        const f = dirFacing(input.d);
+        if (f) p.facing = f;
+      }
+      if (!processed) p.moving = false;
     }
 
     // 3) 사보타주 타이머

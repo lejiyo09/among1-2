@@ -292,23 +292,43 @@ test('문 사보타주: 10초 닫힘, 닫힌 문은 통과 불가', () => {
   assert.ok(!ctx.room.world.closedDoors.has('medbay'));
 });
 
-test('이동: 입력 1개 = 1틱, 빠르게 보내도 속도는 늘지 않는다 (스피드핵 방지)', () => {
+test('이동: 빠르게 보내도 실제 시간 이상으로 빨라지지 않는다 (스피드핵 방지)', () => {
   const ctx = setupRoom(4);
   const p = ctx.players[0];
   teleport(p, 1915, 760);
+  const step = BASE_SPEED / TICK_RATE;
   const startX = p.x;
-  // 1초 분량(30틱)의 입력을 한꺼번에 200개 보냄
-  for (let i = 0; i < 25; i++) ctx.room.handle(p, { t: 'input', seq: i * 8, d: [0, 0, 0, 0, 0, 0, 0, 0] });
-  ctx.advance(1000);
+  // 3초 동안 실제보다 5배 빠르게 입력을 보냄 (틱마다 5개)
+  let seq = 0;
+  for (let t = 0; t < 90; t++) {
+    ctx.room.handle(p, { t: 'input', seq, d: [0, 0, 0, 0, 0] });
+    seq += 5;
+    ctx.advance(TICK_MS);
+  }
   const moved = p.x - startX;
-  assert.ok(moved <= (BASE_SPEED / TICK_RATE) * 31, `moved ${moved}px in 1s`);
+  // 허용: 3초(90틱) + 지연 보정 크레딧 15틱
+  assert.ok(moved <= step * (90 + 15) + 1, `moved ${moved.toFixed(0)}px, limit ${(step * 105).toFixed(0)}`);
   // 이미 처리한 seq 재전송은 무시
-  const seq = p.lastSeq;
-  const x = p.x;
+  ctx.advance(2000);
+  const x = p.x, last = p.lastSeq;
   ctx.room.handle(p, { t: 'input', seq: 0, d: [0, 0, 0] });
   ctx.advance(TICK_MS * 3);
   assert.equal(p.x, x);
-  assert.equal(p.lastSeq, seq);
+  assert.equal(p.lastSeq, last);
+});
+
+test('이동: 지연으로 몰려온 입력은 따라잡는다 (정상 플레이어 보호)', () => {
+  const ctx = setupRoom(4);
+  const p = ctx.players[0];
+  teleport(p, 1915, 760);
+  ctx.advance(1000); // 0.6초 동안 입력이 없었다가
+  const startY = p.y;
+  // 아래쪽(방향 4)은 테이블 사이 빈 공간
+  ctx.room.handle(p, { t: 'input', seq: 0, d: Array(8).fill(4) });
+  ctx.room.handle(p, { t: 'input', seq: 8, d: Array(8).fill(4) });
+  ctx.advance(TICK_MS * 6); // 16개 입력이 6틱 만에 처리되어야 함 (틱당 최대 3개)
+  assert.equal(p.lastSeq, 15);
+  assert.ok(Math.abs(p.y - startY - (BASE_SPEED / TICK_RATE) * 16) < 1, `moved ${p.y - startY}`);
 });
 
 test('이동: 벽을 통과할 수 없다', () => {

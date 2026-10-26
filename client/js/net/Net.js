@@ -67,7 +67,8 @@ export class Net {
       this.send({ t: 'hello', v: 1 });
       if (this.token) {
         this.request('resume', { token: this.token }).then((r) => {
-          if (!r.ok) {
+          // 연결이 잠깐 끊겨 응답을 못 받은 경우(DISCONNECTED/TIMEOUT)는 토큰을 지우지 않고 다음 연결에서 다시 시도한다
+          if (!r.ok && !['DISCONNECTED', 'TIMEOUT', 'OFFLINE', 'RATE_LIMITED'].includes(r.error)) {
             this.token = null;
             this.emit('resumeFailed', r.error);
           }
