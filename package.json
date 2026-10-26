@@ -4,12 +4,15 @@
   "private": true,
   "description": "Among Us 스타일 웹 멀티플레이 게임 (비상업 팬 프로젝트)",
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
     "test": "node --test \"test/**/*.test.js\"",
-    "build:map": "node tools/build-map.mjs"
+    "build:map": "node tools/build-map.mjs",
+    "loadtest": "node tools/loadtest.mjs"
   },
   "dependencies": {
     "phaser": "3.90.0",

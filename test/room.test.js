@@ -405,3 +405,36 @@ test('채팅: 게임 중 생존자 불가, 유령 채팅은 유령에게만', ()
   assert.equal(ctx.room.handle(crew[0], { t: 'chat', text: 'boo' }), null);
   assert.ok(!crew[1].conn.msgs.some((m) => m.kind === 'chat' && m.text === 'boo'), '생존자는 유령 채팅을 못 봄');
 });
+
+test('유령: 벽 통과, 미션 가능, 신고·긴급회의·투표 불가', () => {
+  const ctx = setupRoom(5, { settings: { discussionTime: 0 } });
+  const { impostors, crew } = startGame(ctx);
+  const [a, b] = crew;
+  ctx.advance(10_000);
+  teleport(impostors[0], 1700, 450); teleport(a, 1740, 450);
+  assert.equal(ctx.room.handle(impostors[0], { t: 'kill', targetId: a.id }), null);
+  // 벽 통과: 식당 위쪽 벽을 넘어 위로 이동
+  teleport(a, 1915, 120);
+  for (let i = 0; i < 10; i++) { ctx.room.handle(a, { t: 'input', seq: 1000 + i * 4, d: [12, 12, 12, 12] }); ctx.advance(TICK_MS * 4); }
+  assert.ok(a.y < 60, `ghost y=${a.y}`);
+  // 미션
+  const t = a.tasks.find((x) => !x.done);
+  const spot = map.tasks.find((s) => s.id === t.spots[t.step]);
+  teleport(a, spot.x, spot.y + 10);
+  assert.equal(ctx.room.handle(a, { t: 'taskStart', taskId: t.defId }), null);
+  ctx.room.handle(a, { t: 'taskCancel' });
+  // 신고/긴급 회의 불가
+  const body = [...ctx.room.bodies.values()][0];
+  teleport(a, body.x, body.y);
+  assert.equal(ctx.room.handle(a, { t: 'report', bodyId: body.id }), ERR.NOT_ALLOWED);
+  teleport(a, map.emergency.x, map.emergency.y + 110);
+  assert.equal(ctx.room.handle(a, { t: 'emergency' }), ERR.NOT_ALLOWED);
+  // 다른 사람이 신고 → 투표 단계에서 유령 투표 불가
+  teleport(b, body.x + 30, body.y);
+  assert.equal(ctx.room.handle(b, { t: 'report', bodyId: body.id }), null);
+  ctx.advance(3100);
+  assert.equal(ctx.room.phase, PHASES.VOTING);
+  assert.equal(ctx.room.handle(a, { t: 'vote', target: 'skip' }), ERR.NOT_ALLOWED);
+  // 유령은 살아 있는 사람에게 보이지 않는다
+  assert.equal(ctx.room.canSee(b, a), false);
+});

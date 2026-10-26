@@ -19,6 +19,7 @@ export class RoomManager {
     /** @type {Map<string, {code:string, playerId:string}>} 재접속 토큰 */
     this.sessions = new Map();
     this.timer = null;
+    this.tickStats = { avg: 0, max: 0 };
   }
 
   // ------------------------------------------------------------- 틱 루프
@@ -43,6 +44,7 @@ export class RoomManager {
   }
 
   tickAll() {
+    const t0 = performance.now();
     for (const room of this.rooms.values()) {
       try {
         room.tick();
@@ -50,12 +52,16 @@ export class RoomManager {
         log.error(`room ${room.code} tick failed`, err.stack);
       }
     }
+    // 틱 처리 시간 통계 (/healthz 에 노출). 33ms 를 넘으면 서버가 버거운 것
+    const dt = performance.now() - t0;
+    this.tickStats.avg = this.tickStats.avg * 0.98 + dt * 0.02;
+    this.tickStats.max = Math.max(this.tickStats.max * 0.999, dt);
   }
 
   stats() {
     let players = 0;
     for (const r of this.rooms.values()) players += [...r.players.values()].filter((p) => p.connected).length;
-    return { rooms: this.rooms.size, players };
+    return { rooms: this.rooms.size, players, tickMsAvg: +this.tickStats.avg.toFixed(2), tickMsMax: +this.tickStats.max.toFixed(2) };
   }
 
   // ------------------------------------------------------------- 방

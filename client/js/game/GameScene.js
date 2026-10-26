@@ -90,7 +90,8 @@ export class GameScene extends Phaser.Scene {
   resize() {
     const cam = this.cameras.main;
     const h = this.scale.height, w = this.scale.width;
-    cam.setZoom(Math.max(0.45, Math.min(2.2, Math.min(h / VIEW_HEIGHT, w / (VIEW_HEIGHT * 1.15)))));
+    // 가로 화면: 세로 620px 이 보이게. 세로(휴대폰) 화면: 시야 원(지름 약 560px)이 가로에 들어오게
+    cam.setZoom(Math.max(0.45, Math.min(2.2, Math.min(h / VIEW_HEIGHT, w / 600))));
   }
 
   // ------------------------------------------------------------------ 입력

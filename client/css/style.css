@@ -140,6 +140,9 @@ input, textarea { user-select: text; -webkit-user-select: text; }
 .chat-input { display: flex; gap: 6px; }
 .chat-input .input { font-size: 14px; padding: 6px 8px; }
 .chat-float { position: absolute; right: 10px; top: 70px; width: min(320px, calc(100vw - 20px)); padding: 10px; }
+.chat-toggle { display: none; }
+.rotate-hint { position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); padding: 6px 12px; border-radius: 8px; font-weight: 700; pointer-events: none; display: none; z-index: 5; }
+@media (orientation: portrait) and (max-width: 720px) { .hud:not(.hidden) ~ .rotate-hint, .rotate-hint.show { display: block; } }
 
 /* ---------- 게임 HUD ---------- */
 .hud { position: fixed; inset: 0; pointer-events: none; }
@@ -266,8 +269,12 @@ input, textarea { user-select: text; -webkit-user-select: text; }
   .tablet .chat { grid-column: 1; grid-row: auto; }
   .tablet .chat-log { max-height: 22vh; }
   .vote-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); max-height: 44vh; }
-  .lobby-side { top: 64px; max-height: 42vh; }
+  .lobby-side { top: 116px; max-height: 38vh; }
+  .lobby .chat-float { display: none; top: auto; bottom: 84px; max-height: 40vh; z-index: 3; }
+  .lobby .chat-float.open { display: block; }
+  .chat-toggle { display: inline-block; }
   .chat-float { top: auto; bottom: 80px; max-height: 40vh; }
+  .lobby-bottom { width: calc(100% - 20px); }
   .color-grid { grid-template-columns: repeat(6, 1fr); }
   .actions { grid-template-columns: repeat(2, auto); }
 }

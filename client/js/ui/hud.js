@@ -64,6 +64,7 @@ export class Hud {
       this.ghostChat,
     );
     root.append(this.el);
+    root.append(h('div', { class: 'rotate-hint' }, '📱 가로 화면으로 돌리면 더 넓게 보입니다'));
     this.mapView = new MapView({ net, store, root });
 
     store.subscribe(() => this.render());

@@ -50,6 +50,7 @@ export class Lobby {
           } }, '링크 복사'),
         ),
         h('div', { class: 'panel room-code' }, this.countEl),
+        h('button', { class: 'btn small chat-toggle', onclick: () => this.chatPanel.classList.toggle('open') }, '채팅'),
         h('button', { class: 'btn small danger', onclick: () => this.leave() }, '나가기'),
       ),
       h('div', { class: 'panel lobby-side' },
