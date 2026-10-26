@@ -39,6 +39,10 @@ export function parseMap(tmj, collisionBytes) {
   const roomAt = (x, y) => bySize.find((r) => x >= r.rect[0] && x < r.rect[2] && y >= r.rect[1] && y < r.rect[3])?.name ?? 'Hallway';
 
   return {
+    id: mapProps.mapId ?? 'skeld',
+    kind: mapProps.kind ?? 'game',
+    displayName: mapProps.displayName ?? mapProps.mapId ?? 'skeld',
+    image: mapProps.image ?? 'assets/map/skeld.png',
     width: mapProps.imageWidth ?? gw * cell,
     height: mapProps.imageHeight ?? gh * cell,
     gw, gh, cell, grid,
@@ -50,6 +54,7 @@ export function parseMap(tmj, collisionBytes) {
     vents: layer('vents').map((o) => ({ id: o.name, x: o.x, y: o.y, links: String(props(o).links ?? '').split(',').filter(Boolean), room: roomAt(o.x, o.y) })),
     consoles: layer('consoles').map((o) => ({ id: o.name, sabotage: props(o).sabotage, x: o.x, y: o.y, room: roomAt(o.x, o.y) })),
     doors: layer('doors').map((o) => ({ id: o.name, room: props(o).room, rect: rect(o) })),
+    laptop: layer('laptop').map((o) => ({ x: o.x, y: o.y, range: props(o).range ?? 120 }))[0] ?? null,
   };
 }
 

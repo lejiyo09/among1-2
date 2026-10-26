@@ -129,6 +129,11 @@ input, textarea { user-select: text; -webkit-user-select: text; }
 .section-title { font-weight: 900; font-size: 15px; color: #dfe7f1; border-bottom: 2px solid #3a414c; padding-bottom: 4px; }
 .lobby-colors { display: grid; grid-template-columns: repeat(9, 1fr); gap: 4px; }
 
+.action.lobby-use { position: absolute; right: 14px; bottom: 34px; }
+.customize-body { display: flex; gap: 16px; align-items: center; padding: 8px; }
+.customize-preview { height: 150px; filter: drop-shadow(0 6px 0 rgba(0,0,0,0.5)); }
+.customize-body .color-grid { flex: 1; grid-template-columns: repeat(6, 1fr); }
+
 /* ---------- 채팅 ---------- */
 .chat { display: flex; flex-direction: column; gap: 6px; min-height: 0; }
 .chat-log { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; min-height: 80px; max-height: 260px; padding-right: 4px; }

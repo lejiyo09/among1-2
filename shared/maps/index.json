@@ -1,0 +1,14 @@
+[
+  {
+    "id": "lobby",
+    "file": "lobby.tmj",
+    "kind": "lobby",
+    "displayName": "대기실"
+  },
+  {
+    "id": "skeld",
+    "file": "skeld.tmj",
+    "kind": "game",
+    "displayName": "더 스켈드"
+  }
+]

@@ -7,10 +7,10 @@ import { log } from './util/log.js';
 
 export class RoomManager {
   /**
-   * @param {{map:any, maxRooms?:number, minPlayers?:number, now?:()=>number}} opts
+   * @param {{maps:Record<string,any>, maxRooms?:number, minPlayers?:number, now?:()=>number}} opts
    */
-  constructor({ map, maxRooms = 100, minPlayers = MIN_PLAYERS, now = Date.now }) {
-    this.map = map;
+  constructor({ maps, map, maxRooms = 100, minPlayers = MIN_PLAYERS, now = Date.now }) {
+    this.maps = maps ?? { [map.id ?? 'skeld']: map };
     this.maxRooms = maxRooms;
     this.minPlayers = minPlayers;
     this.now = now;
@@ -70,7 +70,7 @@ export class RoomManager {
     let code;
     do code = roomCode(ROOM_CODE_LENGTH); while (this.rooms.has(code));
     const room = new Room({
-      code, map: this.map, now: this.now, minPlayers: this.minPlayers,
+      code, maps: this.maps, now: this.now, minPlayers: this.minPlayers,
       onEmpty: (r) => { this.rooms.delete(r.code); log.info(`room ${r.code} closed`); },
       onPlayerRemoved: (p) => { if (p.token) this.sessions.delete(p.token); },
     });

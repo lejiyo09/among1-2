@@ -6,6 +6,7 @@ import { play } from '../audio.js';
 
 /** 설정 항목: [키, 라벨, 종류, 옵션] */
 const SETTING_FIELDS = [
+  ['map', '맵', 'map'],
   ['impostors', '임포스터 수', 'int'],
   ['killCooldown', '킬 쿨다운(초)', 'num', 2.5],
   ['killDistance', '킬 거리', 'enum', { short: '짧음', medium: '보통', long: '김' }],
@@ -37,6 +38,14 @@ export class Lobby {
     this.readyBtn = h('button', { class: 'btn primary', onclick: () => this.toggleReady() }, '준비');
     this.startBtn = h('button', { class: 'btn primary start-btn', onclick: () => this.start() }, 'START');
     this.startHint = h('div', { class: 'muted', style: { fontWeight: 700, textShadow: '0 1px 2px #000' } });
+    this.useBtn = h('button', { class: 'action lobby-use', title: '노트북 (E)', disabled: true, onclick: () => this.openCustomize() },
+      h('img', { src: 'assets/ui/use.png', alt: 'USE' }), h('span', { class: 'key' }, 'E'));
+    window.addEventListener('keydown', (e) => {
+      const a = document.activeElement;
+      if (this.el.classList.contains('hidden') || (a && (a.tagName === 'INPUT' || a.tagName === 'SELECT'))) return;
+      if ((e.key === 'e' || e.key === ' ') && !this.useBtn.disabled) { e.preventDefault(); this.openCustomize(); }
+      if (e.key === 'Escape') this.closeCustomize();
+    });
     this.chatView = chat.view();
     this.chatPanel = h('div', { class: 'panel chat-float' }, h('div', { class: 'section-title' }, '채팅'), this.chatView.el);
 
@@ -60,6 +69,7 @@ export class Lobby {
       ),
       this.chatPanel,
       h('div', { class: 'lobby-bottom' }, this.startHint, this.readyBtn, this.startBtn),
+      this.useBtn,
     );
     root.append(this.el);
     store.subscribe(() => this.render());
@@ -69,7 +79,7 @@ export class Lobby {
     const st = this.store.state;
     const show = !!st && st.phase === PHASES.LOBBY;
     this.el.classList.toggle('hidden', !show);
-    if (!show) return;
+    if (!show) { this.closeCustomize(); return; }
     const me = this.store.player(this.store.playerId);
     const host = this.store.isHost;
     this.codeEl.textContent = st.code;
@@ -113,6 +123,15 @@ export class Lobby {
     for (const [key, label, kind, opt] of SETTING_FIELDS) {
       const val = s[key];
       let ctl;
+      if (kind === 'map') {
+        const name = (id) => this.store.maps[id]?.displayName ?? id;
+        const ids = this.store.state?.maps ?? [val];
+        ctl = editable
+          ? h('select', { onchange: (e) => this.set(key, e.target.value) }, ...ids.map((id) => h('option', { value: id, selected: id === val }, name(id))))
+          : h('span', { class: 'val' }, name(val));
+        rows.push(h('label', {}, label), ctl);
+        continue;
+      }
       if (!editable) {
         const text = kind === 'bool' ? (val ? '켬' : '끔') : kind === 'enum' ? opt[val] : String(val);
         ctl = h('span', { class: 'val' }, text);
@@ -136,6 +155,49 @@ export class Lobby {
     // 포커스 중인 입력이 있으면 다시 그리지 않는다 (입력 중 깜빡임 방지)
     if (this.settingsEl.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;
     this.settingsEl.replaceChildren(...rows);
+  }
+
+  /** GameScene 이 매 프레임 알려 주는 상호작용 대상 (노트북 근처인지) */
+  setTargets(t) {
+    const on = t.use?.kind === 'laptop';
+    if (this.useBtn.disabled === on) this.useBtn.disabled = !on;
+  }
+
+  /** 원작 대기실 노트북: 색 고르기 창 */
+  openCustomize() {
+    if (this.customize) return;
+    play('uiSelect');
+    const grid = h('div', { class: 'color-grid' });
+    const render = () => {
+      const st = this.store.state;
+      if (!st) return;
+      const me = this.store.player(this.store.playerId);
+      const used = new Map(st.players.map((p) => [p.color, p.id]));
+      grid.replaceChildren(...COLORS.map((c, i) => {
+        const taken = used.has(i) && used.get(i) !== this.store.playerId;
+        return h('button', {
+          class: `color-cell${me?.color === i ? ' selected' : ''}${taken ? ' taken' : ''}`, title: c[0], disabled: taken,
+          onclick: async () => { const r = await this.net.request('setColor', { color: i }); if (!r.ok) toast(errorText(r.error), 'error'); else play('uiSelect'); },
+        }, h('img', { src: crewIcon(i), alt: c[0] }));
+      }));
+      preview.src = crewIcon(me?.color ?? 0);
+    };
+    const preview = h('img', { class: 'customize-preview', alt: '' });
+    this.customize = h('div', { class: 'modal', onclick: (e) => { if (e.target === this.customize) this.closeCustomize(); } },
+      h('div', { class: 'panel task-panel' },
+        h('button', { class: 'close', title: '닫기 (Esc)', onclick: () => this.closeCustomize() }, h('img', { src: 'assets/ui/close.png', alt: '닫기' })),
+        h('h3', {}, '꾸미기'),
+        h('div', { class: 'customize-body' }, preview, grid)));
+    this.unsubCustomize = this.store.subscribe(render);
+    render();
+    document.getElementById('ui').append(this.customize);
+  }
+
+  closeCustomize() {
+    if (!this.customize) return;
+    this.unsubCustomize?.();
+    this.customize.remove();
+    this.customize = null;
   }
 
   async set(key, value) {

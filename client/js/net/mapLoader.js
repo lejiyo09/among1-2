@@ -14,3 +14,10 @@ export async function loadMap(name = 'skeld') {
   }
   return parseMap(tmj, bytes);
 }
+
+/** shared/maps/index.json 에 있는 모든 맵 → { id: 맵 } */
+export async function loadAllMaps() {
+  const list = await fetch('shared/maps/index.json').then((r) => r.json());
+  const maps = await Promise.all(list.map((m) => loadMap(m.file.replace(/\.tmj$/, ''))));
+  return Object.fromEntries(maps.map((m) => [m.id, m]));
+}

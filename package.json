@@ -11,8 +11,9 @@
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
     "test": "node --test \"test/**/*.test.js\"",
-    "build:map": "node tools/build-map.mjs",
-    "loadtest": "node tools/loadtest.mjs"
+    "build:map": "node tools/build-map.mjs && node tools/build-map-index.mjs",
+    "loadtest": "node tools/loadtest.mjs",
+    "build:maps": "node tools/build-map.mjs && node tools/build-map-index.mjs"
   },
   "dependencies": {
     "phaser": "3.90.0",

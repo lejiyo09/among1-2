@@ -61,12 +61,16 @@ export function createPlayer({ name, color, conn, token, now }) {
 
 export class Room {
   /**
-   * @param {{code:string, map:any, now?:()=>number, minPlayers?:number, onEmpty?:(room:Room)=>void, onPlayerRemoved?:(p:Player)=>void}} opts
+   * @param {{code:string, maps?:Record<string,any>, map?:any, now?:()=>number, minPlayers?:number, onEmpty?:(room:Room)=>void, onPlayerRemoved?:(p:Player)=>void}} opts
+   * maps: 맵 id → 맵 데이터. kind 가 'lobby' 인 맵은 대기실, 나머지는 게임 맵. (map 하나만 주면 대기실도 그 맵을 쓴다)
    */
-  constructor({ code, map, now = Date.now, minPlayers = MIN_PLAYERS, onEmpty = () => {}, onPlayerRemoved = () => {} }) {
+  constructor({ code, maps, map, now = Date.now, minPlayers = MIN_PLAYERS, onEmpty = () => {}, onPlayerRemoved = () => {} }) {
     this.code = code;
-    this.map = map;
-    this.world = new CollisionWorld(map);
+    this.maps = maps ?? { [map.id ?? 'skeld']: map };
+    /** 맵마다 충돌 세계(닫힌 문 상태 포함)를 따로 둔다 */
+    this.worlds = new Map(Object.entries(this.maps).map(([id, m]) => [id, new CollisionWorld(m)]));
+    this.gameMapIds = Object.keys(this.maps).filter((id) => this.maps[id].kind !== 'lobby');
+    this.lobbyMapId = Object.keys(this.maps).find((id) => this.maps[id].kind === 'lobby') ?? null;
     this.now = now;
     this.minPlayers = minPlayers;
     this.onEmpty = onEmpty;
@@ -74,7 +78,7 @@ export class Room {
     /** @type {Map<string, Player>} */
     this.players = new Map();
     this.hostId = null;
-    this.settings = { ...DEFAULT_SETTINGS };
+    this.settings = { ...DEFAULT_SETTINGS, map: this.gameMapIds.includes(DEFAULT_SETTINGS.map) ? DEFAULT_SETTINGS.map : this.gameMapIds[0] };
     this.phase = PHASES.LOBBY;
     this.phaseEndsAt = 0;
     this.gameId = 0;
@@ -89,6 +93,15 @@ export class Room {
   }
 
   // ---------------------------------------------------------------- 공통 유틸
+  /** 지금 플레이어들이 있는 맵: 대기실 단계에는 대기실, 그 밖에는 고른 게임 맵 */
+  get mapId() {
+    return this.phase === PHASES.LOBBY && this.lobbyMapId ? this.lobbyMapId : this.settings.map;
+  }
+
+  get map() { return this.maps[this.mapId]; }
+
+  get world() { return this.worlds.get(this.mapId); }
+
   markDirty() { this.dirty = true; }
 
   send(p, msg) {
@@ -323,6 +336,7 @@ export class Room {
       if (!(key in DEFAULT_SETTINGS)) continue;
       const def = DEFAULT_SETTINGS[key];
       if (key === 'killDistance') { if (value in KILL_DISTANCES) next[key] = value; continue; }
+      if (key === 'map') { if (this.gameMapIds.includes(value)) next[key] = value; continue; }
       if (key === 'taskBarUpdates') { if (['always', 'meetings', 'never'].includes(value)) next[key] = value; continue; }
       if (typeof def === 'boolean') { if (typeof value === 'boolean') next[key] = value; continue; }
       if (typeof value !== 'number' || !Number.isFinite(value)) continue;
@@ -369,7 +383,7 @@ export class Room {
     const list = [...this.players.values()];
     this.gameId++;
     const roles = assignRoles(list.map((o) => o.id), this.settings.impostors);
-    const assign = createTaskAssigner(this.map, this.settings);
+    const assign = createTaskAssigner(this.maps[this.settings.map], this.settings);
     this.bodies.clear();
     this.meeting = null;
     this.endInfo = null;
@@ -388,8 +402,9 @@ export class Room {
       o.emergencyLeft = this.settings.emergencyMeetings;
     }
     this.emergencyReadyAt = now + this.settings.emergencyCooldown * 1000;
+    this.setPhase(PHASES.STARTING, TIMINGS.roleRevealMs); // 이 시점부터 this.map 은 게임 맵
+    for (const d of this.map.doors) this.world.setDoorClosed(d.id, false);
     this.placeAtSpawns(list);
-    this.setPhase(PHASES.STARTING, TIMINGS.roleRevealMs);
     for (const o of list) {
       const team = o.role === ROLES.IMPOSTOR ? list.filter((x) => x.role === ROLES.IMPOSTOR).map((x) => x.id) : [o.id];
       this.send(o, { t: 'fx', kind: 'roleReveal', role: o.role, team, impostorCount: [...roles.values()].filter((r) => r === ROLES.IMPOSTOR).length });
@@ -674,8 +689,8 @@ export class Room {
     this.bodies.clear();
     this.meeting = null;
     this.endInfo = null;
+    this.setPhase(PHASES.LOBBY); // 이 시점부터 this.map 은 대기실
     this.placeAtSpawns([...this.players.values()]);
-    this.setPhase(PHASES.LOBBY);
     if (this.isEmpty()) this.close();
   }
 
@@ -815,7 +830,7 @@ export class Room {
     }));
     const msg = {
       t: 'state', code: this.code, now, gameId: this.gameId,
-      phase: this.phase, endsAt: this.phaseEndsAt, hostId: this.hostId,
+      phase: this.phase, endsAt: this.phaseEndsAt, hostId: this.hostId, mapId: this.mapId, maps: this.gameMapIds,
       settings: this.settings, minPlayers: this.minPlayers,
       players,
     };

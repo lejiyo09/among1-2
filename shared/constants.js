@@ -30,6 +30,7 @@ export const NAME_MAX = 10;                // 원작 닉네임 최대 10자
 
 /** 원작 기본 설정 (방장이 로비에서 일부 변경 가능) */
 export const DEFAULT_SETTINGS = Object.freeze({
+  map: 'skeld',               // 게임 맵 id
   impostors: 1,               // 1~3
   killCooldown: 25,           // 초 (원작 기본 25)
   killDistance: 'medium',

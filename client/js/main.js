@@ -1,6 +1,6 @@
 // 진입점: 네트워크, 상태, Phaser, DOM UI 연결
 import { Net } from './net/Net.js';
-import { loadMap } from './net/mapLoader.js';
+import { loadAllMaps } from './net/mapLoader.js';
 import { Store } from './store.js';
 import { loadCrewAtlas } from './game/recolor.js';
 import { GameScene } from './game/GameScene.js';
@@ -18,9 +18,9 @@ async function boot() {
   const loading = h('div', { class: 'menu' }, h('div', { class: 'panel menu-card', style: { textAlign: 'center' } }, '불러오는 중…'));
   ui.append(loading);
 
-  const [map] = await Promise.all([loadMap('skeld'), loadCrewAtlas()]);
+  const [maps] = await Promise.all([loadAllMaps(), loadCrewAtlas()]);
   const net = new Net();
-  const store = new Store(net, map);
+  const store = new Store(net, maps);
   const chat = new Chat({ net, store });
   loading.remove();
 
@@ -56,7 +56,7 @@ async function boot() {
   net.on('error', (m) => { if (m.code !== 'RATE_LIMITED') console.warn('server error', m); });
 
   // Phaser
-  const scene = new GameScene({ store, net, hud });
+  const scene = new GameScene({ store, net, hud, lobby });
   new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game',

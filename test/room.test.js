@@ -438,3 +438,29 @@ test('유령: 벽 통과, 미션 가능, 신고·긴급회의·투표 불가', (
   // 유령은 살아 있는 사람에게 보이지 않는다
   assert.equal(ctx.room.canSee(b, a), false);
 });
+
+test('대기실 맵 ↔ 게임 맵 전환, 맵 설정 검증', async () => {
+  const { loadAllMaps } = await import('../server/mapLoader.js');
+  const { Room } = await import('../server/game/Room.js');
+  const maps = loadAllMaps();
+  assert.ok(maps.lobby && maps.skeld);
+  let t = 1_000_000;
+  const room = new Room({ code: 'MAPSAA', maps, now: () => t, minPlayers: 2 });
+  const ps = [0, 1, 2, 3].map((i) => room.addPlayer({ name: `M${i}`, color: i, conn: { send() {} }, token: `m${i}` }).player);
+  ps.forEach((p) => { p.ready = true; });
+  assert.equal(room.mapId, 'lobby');
+  const inLobby = (p) => p.y < maps.lobby.height && room.worlds.get('lobby').circleFree(p.x, p.y, 14);
+  assert.ok(ps.every(inLobby), '대기실 스폰');
+  assert.equal(room.handle(ps[0], { t: 'setSettings', settings: { map: 'nope' } }), null);
+  assert.equal(room.settings.map, 'skeld', '없는 맵은 무시');
+  ps.forEach((p) => { p.ready = true; }); // 설정이 바뀌면 준비가 풀린다
+  assert.equal(room.handle(ps[0], { t: 'start' }), null);
+  assert.equal(room.mapId, 'skeld');
+  assert.ok(ps.every((p) => maps.skeld.spawn.some((s) => s.x === p.x && s.y === p.y)), '게임 맵 스폰으로 이동');
+  assert.equal(room.stateFor(ps[1]).mapId, 'skeld');
+  room.endGame('crew', 'tasks');
+  for (let i = 0; i < 300; i++) { t += 33.4; room.tick(); }
+  assert.equal(room.phase, PHASES.LOBBY);
+  assert.equal(room.mapId, 'lobby');
+  assert.ok(ps.every(inLobby), '게임이 끝나면 대기실로');
+});

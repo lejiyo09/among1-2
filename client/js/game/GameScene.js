@@ -7,9 +7,10 @@ import {
 } from '../../shared/constants.js';
 import { play } from '../audio.js';
 
-const SPRITE_SCALE = 0.78;
+// 원작 비율: 식당 테이블 지름의 약 1/3 정도 키 (스켈드 그림 기준 약 73px)
+const SPRITE_SCALE = 0.66;
 const VIEW_HEIGHT = 620;       // 화면 세로에 보이는 월드 높이(px). 원작처럼 식당 하나가 화면에 들어오는 정도
-const BODY_CENTER = 28;        // 발 기준 몸 중심 높이 (시야 원점)
+const BODY_CENTER = 24;        // 발 기준 몸 중심 높이 (시야 원점)
 
 export class GameScene extends Phaser.Scene {
   constructor(ctx) {
@@ -24,31 +25,16 @@ export class GameScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('map', 'assets/map/skeld.png');
+    for (const m of Object.values(this.ctx.store.maps)) this.load.image(`map_${m.id}`, m.image);
     this.load.image('ventgrate', 'assets/ui/ventgrate.png');
     this.load.image('door_v', 'assets/ui/door_v.png');
     this.load.image('door_h', 'assets/ui/door_h.png');
   }
 
   create() {
-    const { store } = this.ctx;
-    const map = store.map;
-    this.add.image(0, 0, 'map').setOrigin(0, 0).setDepth(-10);
-
-    // 벤트 (맵 그림에 없어서 원작 스프라이트로 그린다)
-    for (const v of map.vents) this.add.image(v.x, v.y, 'ventgrate').setScale(1.1).setDepth(-5);
-
-    // 문
     this.doorSprites = new Map();
-    for (const d of map.doors) {
-      const [x0, y0, x1, y1] = d.rect;
-      const vertical = y1 - y0 > x1 - x0;
-      const img = this.add.image((x0 + x1) / 2, (y0 + y1) / 2, vertical ? 'door_v' : 'door_h').setDepth(y1);
-      if (vertical) img.setDisplaySize(x1 - x0 + 6, y1 - y0 + 50).setY((y0 + y1) / 2 - 25);
-      else img.setDisplaySize(x1 - x0 + 10, 70).setY(y0 - 15);
-      img.setVisible(false);
-      this.doorSprites.set(d.id, img);
-    }
+    this.mapObjects = [];
+    this.buildMap(this.ctx.store.map);
 
     // 미션 위치 표시 (내 미션의 현재 단계만)
     this.taskMarkers = this.add.graphics().setDepth(5);
@@ -85,6 +71,30 @@ export class GameScene extends Phaser.Scene {
     const end = (p) => { if (p.id === this.joystick.id) this.joystick.active = false; };
     this.input.on('pointerup', end);
     this.input.on('pointerupoutside', end);
+  }
+
+  /** 맵 그림, 벤트, 문을 그린다. 대기실 ↔ 게임 맵이 바뀔 때마다 다시 만든다 */
+  buildMap(map) {
+    for (const o of this.mapObjects) o.destroy();
+    this.mapObjects = [];
+    this.doorSprites.clear();
+    this.builtMapId = map.id;
+    const add = (o) => { this.mapObjects.push(o); return o; };
+    add(this.add.image(0, 0, `map_${map.id}`).setOrigin(0, 0).setDisplaySize(map.width, map.height).setDepth(-10));
+    // 벤트 (스켈드 그림에는 없어서 원작 스프라이트로 그린다)
+    for (const v of map.vents) add(this.add.image(v.x, v.y, 'ventgrate').setScale(1.1).setDepth(-5));
+    // 문
+    for (const d of map.doors) {
+      const [x0, y0, x1, y1] = d.rect;
+      const vertical = y1 - y0 > x1 - x0;
+      const img = add(this.add.image((x0 + x1) / 2, (y0 + y1) / 2, vertical ? 'door_v' : 'door_h').setDepth(y1));
+      if (vertical) img.setDisplaySize(x1 - x0 + 6, y1 - y0 + 50).setY((y0 + y1) / 2 - 25);
+      else img.setDisplaySize(x1 - x0 + 10, 70).setY(y0 - 15);
+      img.setVisible(false);
+      this.doorSprites.set(d.id, img);
+    }
+    for (const s of this.bodySprites.values()) s.destroy();
+    this.bodySprites.clear();
   }
 
   resize() {
@@ -131,7 +141,7 @@ export class GameScene extends Phaser.Scene {
     const key = ensurePhaserTexture(this, color);
     this.ensureAnims(key);
     const sprite = this.add.sprite(0, 0, key, 'idle').setOrigin(0.5, 0.9).setScale(SPRITE_SCALE);
-    const label = this.add.text(0, -96, '', {
+    const label = this.add.text(0, -82, '', {
       fontFamily: 'system-ui, sans-serif', fontSize: '15px', fontStyle: 'bold', color: '#ffffff', stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5, 1);
     const container = this.add.container(0, 0, [sprite, label]);
@@ -165,9 +175,9 @@ export class GameScene extends Phaser.Scene {
     c.label.setAlpha(ghost ? 0.6 : 1);
     if (flags & 8) {
       // 원작 의무실 스캔: 초록 스캔 빛
-      c.scanFx ??= this.add.ellipse(0, -40, 70, 14, 0x3cff7a, 0.35);
+      c.scanFx ??= this.add.ellipse(0, -34, 60, 12, 0x3cff7a, 0.35);
       if (!c.container.list.includes(c.scanFx)) c.container.addAt(c.scanFx, 0);
-      c.scanFx.y = -40 + Math.sin(this.time.now / 200) * 38;
+      c.scanFx.y = -34 + Math.sin(this.time.now / 200) * 32;
       c.scanFx.setVisible(true);
     } else if (c.scanFx) c.scanFx.setVisible(false);
   }
@@ -182,6 +192,7 @@ export class GameScene extends Phaser.Scene {
       for (const c of this.crews.values()) c.container.setVisible(false);
       return;
     }
+    if (this.builtMapId !== store.mapId) this.buildMap(store.map);
     store.update(delta, dir);
     store.advanceRenderClock(delta);
     const me = store.player(store.playerId);
@@ -242,6 +253,7 @@ export class GameScene extends Phaser.Scene {
     this.drawTaskMarkers(st);
     this.targets = this.computeTargets(st);
     this.ctx.hud?.setTargets(this.targets);
+    this.ctx.lobby?.setTargets(this.targets);
 
     // 발소리
     if (store.me.moving && !ghostView) {
@@ -313,8 +325,13 @@ export class GameScene extends Phaser.Scene {
     const me = store.me;
     const you = st.you;
     const out = { use: null, report: null, kill: null, vent: null, ventLinks: [] };
-    if (st.phase !== PHASES.PLAYING || !you) return out;
     const near = (x, y, r) => Math.hypot(me.x - x, me.y - y) <= r * 0.95;
+    if (st.phase === PHASES.LOBBY) {
+      // 원작 대기실: 노트북에서 꾸미기
+      if (map.laptop && near(map.laptop.x, map.laptop.y, map.laptop.range)) out.use = { kind: 'laptop' };
+      return out;
+    }
+    if (st.phase !== PHASES.PLAYING || !you) return out;
 
     if (you.inVent) {
       const v = map.vents.find((x) => x.id === you.inVent);

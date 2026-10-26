@@ -6,11 +6,15 @@ import { TICK_MS, INTERP_DELAY_MS, PHASES, ROLES } from '../shared/constants.js'
 const SEND_EVERY_TICKS = 2; // 입력 2틱(약 66ms)마다 묶어서 전송
 
 export class Store {
-  /** @param {import('./net/Net.js').Net} net */
-  constructor(net, map) {
+  /**
+   * @param {import('./net/Net.js').Net} net
+   * @param {Record<string, any>} maps 맵 id → 맵 데이터 (대기실 포함)
+   */
+  constructor(net, maps) {
     this.net = net;
-    this.map = map;
-    this.world = new CollisionWorld(map);
+    this.maps = maps;
+    this.worlds = new Map(Object.entries(maps).map(([id, m]) => [id, new CollisionWorld(m)]));
+    this.lobbyMapId = Object.keys(maps).find((id) => maps[id].kind === 'lobby') ?? Object.keys(maps)[0];
     this.playerId = null;
     this.code = null;
     /** 서버의 마지막 state 메시지 */
@@ -64,6 +68,10 @@ export class Store {
   }
 
   // ---------------------------------------------------------------- 파생 정보
+  /** 지금 있는 맵 (서버가 state.mapId 로 알려 준다) */
+  get mapId() { return this.maps[this.state?.mapId] ? this.state.mapId : this.lobbyMapId; }
+  get map() { return this.maps[this.mapId]; }
+  get world() { return this.worlds.get(this.mapId); }
   get phase() { return this.state?.phase ?? null; }
   get you() { return this.state?.you ?? null; }
   get inRoom() { return !!this.state && !!this.playerId; }
@@ -86,7 +94,15 @@ export class Store {
   // ---------------------------------------------------------------- 서버 메시지
   onState(m) {
     const prevPhase = this.state?.phase;
+    const prevMap = this.state?.mapId;
     this.state = m;
+    if (prevMap && prevMap !== m.mapId) {
+      // 맵이 바뀜(대기실 ↔ 게임): 예측 기록과 다른 플레이어 기록을 버리고 다음 스냅샷 위치로 바로 이동
+      this.pendingInputs = [];
+      this.outbox = [];
+      this.remotes.clear();
+      this.me.known = false;
+    }
     // 닫힌 문을 예측용 충돌 세계에도 반영
     const closed = new Set(m.sabotage?.doorsClosed ?? []);
     for (const d of this.map.doors) this.world.setDoorClosed(d.id, closed.has(d.id));

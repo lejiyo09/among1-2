@@ -101,6 +101,10 @@ const tmj = {
   type: 'map', version: '1.10', tiledversion: '1.11.0', orientation: 'orthogonal', renderorder: 'right-down', infinite: false,
   width: GW, height: GH, tilewidth: CELL, tileheight: CELL, nextlayerid: 1, nextobjectid: 1,
   properties: [
+    { name: 'mapId', type: 'string', value: 'skeld' },
+    { name: 'kind', type: 'string', value: 'game' },
+    { name: 'displayName', type: 'string', value: '더 스켈드' },
+    { name: 'image', type: 'string', value: 'assets/map/skeld.png' },
     { name: 'imageWidth', type: 'int', value: W },
     { name: 'imageHeight', type: 'int', value: H },
     { name: 'source', type: 'string', value: 'Skeld map art by Z3_NON (via github.com/jinhyuk558/web-amongus-clone)' },

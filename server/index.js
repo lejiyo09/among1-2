@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
-import { loadMap } from './mapLoader.js';
+import { loadAllMaps } from './mapLoader.js';
 import { RoomManager } from './RoomManager.js';
 import { Connection } from './net/Connection.js';
 import { parseClientMessage, ERR, MAX_MESSAGE_BYTES } from '../shared/protocol.js';
@@ -165,7 +165,9 @@ export function onMessage(manager, conn, raw) {
 
 // 직접 실행했을 때만 서버 시작 (테스트에서는 import 만 한다)
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const manager = new RoomManager({ map: loadMap('skeld'), maxRooms: config.maxRooms, minPlayers: config.minPlayers });
+  const maps = loadAllMaps();
+  log.info(`maps: ${Object.keys(maps).join(', ')}`);
+  const manager = new RoomManager({ maps, maxRooms: config.maxRooms, minPlayers: config.minPlayers });
   manager.start();
   const { server } = createServer(manager);
   server.listen(config.port, config.host, () => {
