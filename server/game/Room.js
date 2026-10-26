@@ -95,7 +95,7 @@ export class Room {
 
   /** 연출/효과음용 이벤트. filter 로 받을 사람을 고른다 */
   fx(kind, data, filter = () => true) {
-    for (const p of this.players.values()) if (!p.removed && filter(p)) this.send(p, { t: 'fx', kind, ...data });
+    for (const p of this.players.values()) if (!p.removed && filter(p)) this.send(p, { t: 'fx', ...data, kind });
   }
 
   get inGamePlayers() {
@@ -565,10 +565,11 @@ export class Room {
     if (ejected) {
       ejected.alive = false;
       ejected.deathKnown = true;
+      const n = ejected.name;
       if (this.settings.confirmEjects) {
-        text = ejected.role === ROLES.IMPOSTOR ? `${ejected.name}은(는) 임포스터였습니다.` : `${ejected.name}은(는) 임포스터가 아니었습니다.`;
+        text = ejected.role === ROLES.IMPOSTOR ? `${n}${josa(n, '은', '는')} 임포스터였습니다.` : `${n}${josa(n, '은', '는')} 임포스터가 아니었습니다.`;
       } else {
-        text = `${ejected.name}이(가) 추방되었습니다.`;
+        text = `${n}${josa(n, '이', '가')} 추방되었습니다.`;
       }
     } else {
       text = tally.tie ? '아무도 추방되지 않았습니다. (동점)' : '아무도 추방되지 않았습니다. (건너뜀)';
@@ -840,4 +841,11 @@ export class Room {
     if (ended) msg.end = this.endInfo;
     return msg;
   }
+}
+
+/** 한국어 조사: 마지막 글자에 받침이 있으면 withFinal, 없으면 without. 한글이 아니면 둘 다 표기 */
+export function josa(word, withFinal, without) {
+  const last = word.charCodeAt(word.length - 1);
+  if (last < 0xac00 || last > 0xd7a3) return `${withFinal}(${without})`;
+  return (last - 0xac00) % 28 ? withFinal : without;
 }

@@ -6,6 +6,7 @@ import { DEFAULT_SETTINGS, maxImpostorsFor } from '../shared/constants.js';
 import { TASK_DEFS } from '../shared/tasks.js';
 import { parseClientMessage, sanitizeName } from '../shared/protocol.js';
 import { map } from './helpers.js';
+import { josa } from '../server/game/Room.js';
 
 test('역할 배정: 인원별 임포스터 수 제한', () => {
   const ids = (n) => Array.from({ length: n }, (_, i) => `p${i}`);
@@ -112,4 +113,11 @@ test('프로토콜 검증: 잘못된 메시지 거부', () => {
   assert.equal(parseClientMessage('x'.repeat(5000)).ok, false);
   assert.equal(sanitizeName('  <b>홍길동</b>  친구들아 반가워 '), 'b홍길동/b 친구들');
   assert.equal(sanitizeName('\u0000\u0007'), '');
+});
+
+test('한국어 조사', () => {
+  assert.equal(josa('영희', '은', '는'), '는');
+  assert.equal(josa('철수', '은', '는'), '는');
+  assert.equal(josa('민준', '은', '는'), '은');
+  assert.equal(josa('Bob', '은', '는'), '은(는)');
 });

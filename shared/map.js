@@ -26,7 +26,8 @@ export function parseMap(tmj, collisionBytes) {
   const gw = tmj.width, gh = tmj.height, cell = tmj.tilewidth;
   const grid = new Uint8Array(gw * gh);
   const view = new DataView(collisionBytes.buffer, collisionBytes.byteOffset, collisionBytes.byteLength);
-  for (let i = 0; i < gw * gh; i++) grid[i] = view.getUint32(i * 4, true) ? 1 : 0;
+  // 0 = 빈 곳, 1 = 벽(이동·시야 차단), 2 = 가구(이동만 차단)
+  for (let i = 0; i < gw * gh; i++) grid[i] = Math.min(2, view.getUint32(i * 4, true));
 
   const mapProps = props(tmj);
   const layer = (name) => tmj.layers.find((l) => l.type === 'objectgroup' && l.name === name)?.objects ?? [];
@@ -92,6 +93,14 @@ export class CollisionWorld {
     const { gw, gh } = this.map;
     if (gx < 0 || gy < 0 || gx >= gw || gy >= gh) return true;
     const i = gy * gw + gx;
+    return this.map.grid[i] !== 0 || this.doorCells[i] > 0;
+  }
+
+  /** 시야를 막는 칸인가 (벽과 닫힌 문. 가구는 시야를 막지 않는다) */
+  opaqueCell(gx, gy) {
+    const { gw, gh } = this.map;
+    if (gx < 0 || gy < 0 || gx >= gw || gy >= gh) return true;
+    const i = gy * gw + gx;
     return this.map.grid[i] === 1 || this.doorCells[i] > 0;
   }
 
@@ -127,14 +136,14 @@ export class CollisionWorld {
     return { x, y };
   }
 
-  /** 두 점 사이 직선이 벽에 막히는가 (시야/상호작용 판정용, 문 포함) */
+  /** 두 점 사이 직선이 벽(또는 닫힌 문)에 막히는가 — 시야, 킬, 신고 판정용. 가구는 통과 */
   lineBlocked(x0, y0, x1, y1) {
     const { cell } = this.map;
     const dist = Math.hypot(x1 - x0, y1 - y0);
     const steps = Math.max(1, Math.ceil(dist / (cell / 2)));
     for (let i = 1; i < steps; i++) {
       const t = i / steps;
-      if (this.blockedCell(Math.floor((x0 + (x1 - x0) * t) / cell), Math.floor((y0 + (y1 - y0) * t) / cell))) return true;
+      if (this.opaqueCell(Math.floor((x0 + (x1 - x0) * t) / cell), Math.floor((y0 + (y1 - y0) * t) / cell))) return true;
     }
     return false;
   }

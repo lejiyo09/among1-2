@@ -61,7 +61,7 @@ export class SabotageSystem {
       default:
         return ERR.BAD_MESSAGE;
     }
-    this.room.fx('sabotage', { kind }, () => true);
+    this.room.fx('sabotage', { sabotage: kind }, () => true);
     this.room.markDirty();
     return null;
   }
@@ -138,7 +138,7 @@ export class SabotageSystem {
     const kind = this.active.kind;
     this.active = null;
     this.cooldownUntil = now + TIMINGS.sabotageCooldown * 1000;
-    this.room.fx('sabotageFixed', { kind }, () => true);
+    this.room.fx('sabotageFixed', { sabotage: kind }, () => true);
     this.room.markDirty();
   }
 

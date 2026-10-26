@@ -77,10 +77,11 @@ function inside(s, x, y) {
   }
   return false;
 }
+// 1 = 벽 (이동·시야 모두 막음), 2 = 가구 (이동만 막고 시야는 통과 — 원작처럼 테이블은 그림자를 만들지 않는다)
 for (const o of openings) fillShape(o, 0);
-for (const o of obstacles) fillShape(o, 1);
+for (const o of obstacles) fillShape(o, 2);
 
-// 5) Tiled JSON 작성 (collision 레이어: base64 + zlib, gid 1 = 막힘)
+// 5) Tiled JSON 작성 (collision 레이어: base64 + zlib, gid 1 = 벽, gid 2 = 가구)
 const gids = Buffer.alloc(GW * GH * 4);
 for (let i = 0; i < GW * GH; i++) gids.writeUInt32LE(grid[i], i * 4);
 let nextId = 1;
@@ -103,7 +104,7 @@ const tmj = {
     { name: 'imageHeight', type: 'int', value: H },
     { name: 'source', type: 'string', value: 'Skeld map art by Z3_NON (via github.com/jinhyuk558/web-amongus-clone)' },
   ],
-  tilesets: [{ firstgid: 1, name: 'collision', tilewidth: CELL, tileheight: CELL, tilecount: 1, columns: 1, image: 'collision-tile.png', imagewidth: CELL, imageheight: CELL }],
+  tilesets: [{ firstgid: 1, name: 'collision', tilewidth: CELL, tileheight: CELL, tilecount: 2, columns: 2, image: 'collision-tile.png', imagewidth: CELL * 2, imageheight: CELL }],
   layers: [],
 };
 let layerId = 1;
@@ -119,7 +120,7 @@ tmj.nextlayerid = layerId;
 tmj.nextobjectid = nextId;
 fs.mkdirSync(path.join(root, 'shared/maps'), { recursive: true });
 fs.writeFileSync(path.join(root, 'shared/maps/skeld.tmj'), JSON.stringify(tmj));
-console.log(`grid ${GW}x${GH} cells of ${CELL}px, blocked ${grid.reduce((a, b) => a + b, 0)}`);
+console.log(`grid ${GW}x${GH} cells of ${CELL}px, walls ${grid.filter((v) => v === 1).length}, furniture ${grid.filter((v) => v === 2).length}`);
 
 // 6) 디버그 오버레이
 if (process.argv.includes('--debug')) {
@@ -129,7 +130,9 @@ if (process.argv.includes('--debug')) {
       const i = (y * W + x) * 4;
       const a = data[i + 3] / 255;
       let r = data[i] * a, g = data[i + 1] * a, b = data[i + 2] * a;
-      if (grid[Math.floor(y / CELL) * GW + Math.floor(x / CELL)]) { r = r * 0.45 + 140; g *= 0.45; b *= 0.45; }
+      const v = grid[Math.floor(y / CELL) * GW + Math.floor(x / CELL)];
+      if (v === 1) { r = r * 0.45 + 140; g *= 0.45; b *= 0.45; }
+      else if (v === 2) { r *= 0.45; g *= 0.45; b = b * 0.45 + 140; }
       out.data[i] = r; out.data[i + 1] = g; out.data[i + 2] = b; out.data[i + 3] = 255;
     }
   }
