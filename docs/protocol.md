@@ -60,6 +60,8 @@
 | `create` | `name`, `color?`, `practice?`, `rid?` | 방 만들기 → `joined`. `practice: true` 는 혼자 하는 연습 방(원작 자유 플레이: 더미 크루원, 승패 없음, 다른 사람 입장 불가, 설정 `practiceRole`) |
 | `endPractice` | `rid?` | 연습 방에서 게임을 끝내고 대기실로 |
 | `admin` | `rid?` | 관리실 지도: 탁자 앞(USE_RANGE)에서만. 응답으로 `adminMap { rooms: { 방이름: 사람+시체 수 } }` (누가 있는지는 보내지 않음). 통신 방해 중 `COMMS_DOWN` |
+| `doorlog` | `rid?` | 미라 HQ 출입 기록: 장치 앞에서만. 응답 `doorLog { entries: [{ color, sensor: north/southeast/southwest, ago(ms) }] }` (최신순 20개, 플레이어 id 없음) |
+| `vitals` | `rid?` | 생체 신호: 장치 앞에서만. 응답 `vitals { players: [{ color, state: alive/dead/dc }] }` |
 | `cams` | `on`, `rid?` | 보안실 CCTV 보기 시작/끝. 보는 동안 스냅샷에 카메라(반경 CAM_RADIUS, 벽 가림 적용)에 비친 사람·시체가 추가되고 이동·행동 불가. state 에 `you.watchingCams`, 모두에게 `camsInUse` |
 | `join` | `code`(영문 대문자 6), `name`, `color?`, `rid?` | 방 코드로 입장 → `joined` |
 | `resume` | `token`(hex 32), `rid?` | 재접속 → `joined {resumed:true}` 또는 `SESSION_EXPIRED` |

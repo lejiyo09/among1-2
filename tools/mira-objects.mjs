@@ -200,8 +200,17 @@ export const objects = {
   ],
 
   // 관리실 지도 탁자 (원작 AdminMapConsole, 탁자 아래쪽에서 사용). 미라 HQ 에는 CCTV 대신 출입 기록이 있다 (미구현)
-  monitors: [{ name: 'AdminMap', type: 'admin', x: 2655, y: 945 }],
+  // 출입 기록 장치(원작 SurvLogConsole, 통신실)와 Y자 복도 센서 3개(원작 SecurityLogger 노드: 위치·회전·길이로 선분을 만듦)
+  monitors: [
+    { name: 'AdminMap', type: 'admin', x: 2655, y: 945 },
+    { name: 'DoorLog', type: 'doorlog', ...W(16.22, 5.82) },
+  ],
   cameras: [],
+  sensors: [
+    { name: 'north', type: 'sensor', x: 2317, y: 1103, props: { x2: 2499, y2: 1103 } },
+    { name: 'southeast', type: 'sensor', x: 2725, y: 1838, props: { x2: 2814, y2: 1749 } },
+    { name: 'southwest', type: 'sensor', x: 2001, y: 1749, props: { x2: 2090, y2: 1838 } },
+  ],
 
   // 원작 미라 HQ 에는 닫을 수 있는 문이 없다
   doors: [],

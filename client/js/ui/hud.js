@@ -7,6 +7,7 @@ import { openTask, closeTaskPanel, taskPanelOpen } from '../tasks/index.js';
 import { openFix, closeFixPanel } from '../sabotage/index.js';
 import { MapView } from './mapview.js';
 import { Cams } from './cams.js';
+import { Monitors } from './monitors.js';
 
 const SABO_NAMES = { reactor: '원자로 붕괴', o2: '산소 고갈', lights: '전등 고장', comms: '통신 방해' };
 
@@ -71,6 +72,7 @@ export class Hud {
     root.append(h('div', { class: 'rotate-hint' }, '📱 가로 화면으로 돌리면 더 넓게 보입니다'));
     this.mapView = new MapView({ net, store, root });
     this.cams = new Cams({ net, store, root });
+    this.monitors = new Monitors({ net, store, root });
 
     store.subscribe(() => this.render());
     net.on('task', (m) => this.onTaskBegin(m));
@@ -263,6 +265,8 @@ export class Hud {
       if (this.mapView.mode === 'admin') this.mapView.close(); else { play('uiSelect'); this.mapView.open('admin'); }
     } else if (u.kind === 'cams') {
       this.cams.show();
+    } else if (u.kind === 'doorlog' || u.kind === 'vitals') {
+      if (this.monitors.kind === u.kind) this.monitors.close(); else this.monitors.open(u.kind, u.spot);
     }
   }
 

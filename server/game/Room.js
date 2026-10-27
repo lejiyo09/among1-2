@@ -264,7 +264,7 @@ export class Room {
   handle(p, msg) {
     if (p.removed) return ERR.NOT_IN_ROOM;
     // CCTV 를 보는 동안에는 다른 행동을 할 수 없다 (원작: 화면을 닫아야 움직이고 행동할 수 있다)
-    if (p.watchingCams && ['kill', 'vent', 'taskStart', 'report', 'emergency', 'fix', 'sabotage', 'admin'].includes(msg.t)) return ERR.NOT_ALLOWED;
+    if (p.watchingCams && ['kill', 'vent', 'taskStart', 'report', 'emergency', 'fix', 'sabotage', 'admin', 'doorlog', 'vitals'].includes(msg.t)) return ERR.NOT_ALLOWED;
     switch (msg.t) {
       case 'input': return this.onInput(p, msg);
       case 'chat': return this.onChat(p, msg.text);
@@ -275,6 +275,8 @@ export class Room {
       case 'endPractice': return this.onEndPractice(p);
       case 'admin': return this.onAdmin(p);
       case 'cams': return this.onCams(p, msg.on);
+      case 'doorlog': return this.onDoorLog(p);
+      case 'vitals': return this.onVitals(p);
       case 'kick': return this.onKick(p, msg.playerId);
       case 'taskStart': return this.onTaskStart(p, msg.taskId);
       case 'taskComplete': return this.onTaskComplete(p, msg.taskId, msg.answer);
@@ -427,6 +429,8 @@ export class Room {
     this.meeting = null;
     this.endInfo = null;
     this.sabotage.onGameStart(now);
+    this.doorLog = [];
+    this.sensorLast = new Map();
     for (const o of list) {
       o.inGame = true;
       o.role = roles.get(o.id);
@@ -726,6 +730,36 @@ export class Room {
     return null;
   }
 
+  /** 미라 HQ 출입 기록: 살아 있는 사람이 센서 선분을 가로지르면 색과 센서를 기록 (같은 센서는 3초에 한 번) */
+  checkSensors(p, ox, oy, now) {
+    for (const s of this.map.sensors) {
+      if (!segmentsCross(ox, oy, p.x, p.y, s.x1, s.y1, s.x2, s.y2)) continue;
+      const key = `${p.id}:${s.id}`;
+      if (now - (this.sensorLast.get(key) ?? -Infinity) < 3000) continue;
+      this.sensorLast.set(key, now);
+      this.doorLog.push({ color: p.color, sensor: s.id, at: now });
+      if (this.doorLog.length > 20) this.doorLog.shift();
+    }
+  }
+
+  /** 출입 기록 장치: 최근 20개 (색과 센서, 몇 초 전). 원작처럼 누가 지나갔는지는 색으로만 */
+  onDoorLog(p) {
+    const err = this.canUseMonitor(p, this.map.doorLogConsole);
+    if (err) return err;
+    const now = this.now();
+    this.send(p, { t: 'doorLog', entries: (this.doorLog ?? []).slice().reverse().map((e) => ({ color: e.color, sensor: e.sensor, ago: now - e.at })) });
+    return null;
+  }
+
+  /** 생체 신호: 게임 참가자마다 살아 있음 / 죽음 / 연결 끊김 (원작: 시체가 발견되기 전에도 죽음이 보인다) */
+  onVitals(p) {
+    const err = this.canUseMonitor(p, this.map.vitalsConsole);
+    if (err) return err;
+    const players = this.inGamePlayers.map((o) => ({ color: o.color, state: o.removed || !o.connected ? 'dc' : o.alive ? 'alive' : 'dead' }));
+    this.send(p, { t: 'vitals', players });
+    return null;
+  }
+
   /** 감시 카메라 중 하나가 이 점을 비추는가 */
   camSees(x, y) {
     return this.map.cameras.some((c) => Math.hypot(x - c.vx, y - c.vy) <= CAM_RADIUS && !this.world.lineBlocked(c.vx, c.vy, x, y));
@@ -831,7 +865,9 @@ export class Room {
         p.lastSeq = input.seq;
         if (!this.canMove(p) || input.d === DIR_NONE) { p.moving = false; continue; }
         const ghost = p.inGame && !p.alive && this.phase === PHASES.PLAYING;
+        const ox = p.x, oy = p.y;
         stepMovement(p, input.d, { world: this.world, speedMul: this.settings.playerSpeed, ghost });
+        if (this.map.sensors.length && this.isPlaying && p.inGame && p.alive) this.checkSensors(p, ox, oy, now);
         p.moving = true;
         const f = dirFacing(input.d);
         if (f) p.facing = f;
@@ -976,6 +1012,14 @@ export class Room {
     if (ended) msg.end = this.endInfo;
     return msg;
   }
+}
+
+/** 선분 AB 와 CD 가 교차하는가 (끝점 접촉 포함) */
+function segmentsCross(ax, ay, bx, by, cx, cy, dx, dy) {
+  const o = (px, py, qx, qy, rx, ry) => Math.sign((qx - px) * (ry - py) - (qy - py) * (rx - px));
+  const o1 = o(ax, ay, bx, by, cx, cy), o2 = o(ax, ay, bx, by, dx, dy);
+  const o3 = o(cx, cy, dx, dy, ax, ay), o4 = o(cx, cy, dx, dy, bx, by);
+  return o1 !== o2 && o3 !== o4;
 }
 
 /** 한국어 조사: 마지막 글자에 받침이 있으면 withFinal, 없으면 without. 한글이 아니면 둘 다 표기 */

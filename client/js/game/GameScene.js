@@ -360,7 +360,7 @@ export class GameScene extends Phaser.Scene {
     const t = this.time.now / 400;
     // 원작: 사용할 수 있는 거리에 들어온 미션 콘솔·수리 장치·비상 버튼은 노란 테두리로 빛난다
     const use = this.targets?.use;
-    const hot = use?.kind === 'task' || use?.kind === 'admin' || use?.kind === 'cams' ? use.spot : use?.kind === 'fix' ? use.console : use?.kind === 'emergency' ? this.ctx.store.map.emergency : null;
+    const hot = ['task', 'admin', 'cams', 'doorlog', 'vitals'].includes(use?.kind) ? use.spot : use?.kind === 'fix' ? use.console : use?.kind === 'emergency' ? this.ctx.store.map.emergency : null;
     if (hot) {
       g.lineStyle(10, 0xffe14d, 0.25).strokeCircle(hot.x, hot.y, 30);
       g.lineStyle(4, 0xffe14d, 1).strokeCircle(hot.x, hot.y, 30);
@@ -413,6 +413,8 @@ export class GameScene extends Phaser.Scene {
     // 관리실 지도, 보안실 CCTV (원작: 임포스터도 쓸 수 있다)
     if (!out.use && you.alive && map.adminTable && near(map.adminTable.x, map.adminTable.y, USE_RANGE)) out.use = { kind: 'admin', spot: map.adminTable };
     if (!out.use && you.alive && map.camsConsole && near(map.camsConsole.x, map.camsConsole.y, USE_RANGE)) out.use = { kind: 'cams', spot: map.camsConsole };
+    if (!out.use && you.alive && map.doorLogConsole && near(map.doorLogConsole.x, map.doorLogConsole.y, USE_RANGE)) out.use = { kind: 'doorlog', spot: map.doorLogConsole };
+    if (!out.use && you.alive && map.vitalsConsole && near(map.vitalsConsole.x, map.vitalsConsole.y, USE_RANGE)) out.use = { kind: 'vitals', spot: map.vitalsConsole };
     // 비상 버튼
     const e = map.emergency;
     if (!out.use && you.alive && near(e.x, e.y, e.range)) out.use = { kind: 'emergency' };
