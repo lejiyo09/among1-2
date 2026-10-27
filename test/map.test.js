@@ -150,3 +150,13 @@ test('skeld: 식당 → 무기고, 식당 → 의무실 통로가 뚫려 있다'
   for (let x = 1480; x >= 1300; x -= 8) assert.ok(w.circleFree(x, 495, PLAYER_RADIUS), `식당→의무실 쪽 통로 막힘 (${x},495)`);
 });
 
+
+// 난간 너머 아래층 기계 구역은 걸을 수 없다 (원작) — 무기고 3곳, 방어막실 3곳
+test('skeld: 무기고·방어막실 난간 너머로 갈 수 없다', () => {
+  const map = loadMap('skeld');
+  const w = new CollisionWorld(map);
+  const decks = [[2610, 330], [2640, 600], [2900, 550], [2610, 1450], [2620, 1720], [2900, 1620]];
+  for (const [x, y] of decks) assert.ok(!w.circleFree(x, y, PLAYER_RADIUS), `(${x},${y}) 은 난간 너머인데 걸을 수 있다`);
+  // 방 가운데 바닥은 걸을 수 있다
+  for (const [x, y] of [[2760, 330], [2760, 560], [2760, 1600]]) assert.ok(w.circleFree(x, y, PLAYER_RADIUS), `(${x},${y}) 바닥이 막혔다`);
+});

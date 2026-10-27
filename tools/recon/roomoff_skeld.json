@@ -7,5 +7,17 @@
 6,
 0,
 1.3
+],
+"shields_floor/shields_rail1": [
+0,
+50
+],
+"weap_platform/weap_rail1": [
+0,
+-35
+],
+"HullItems/WeaponGun": [
+-200,
+-160
 ]
 }
