@@ -35,8 +35,8 @@ ALIAS=alias_mira.json python3 render.py MiraShip.glb texmap_mira.json mira_full.
 - 그린 것: 상·하부 엔진 본체와 난간, 원자로 노심·받침·배관·전선, 보안실 서버, 의무실 스캐너, 산소 탱크, 관리실 지도 홀로그램·화면·콘솔 의자, 보안실 CCTV 책상, 의무실 컴퓨터, 항해실 의자·조종/항로 콘솔, 통신실 양옆 모니터 책상·아래 책상과 의자, 전기실 배전반·전선, 방어막실 전구·난간, 무기실 배관·난간, 비상 버튼, 복도 감시 카메라, 선체 바깥 추진기·무기 포신·방어막 (뒤 레이어)
 
 ```sh
-ROOMOFF=roomoff_skeld.json ALIAS=alias_skeld.json python3 overlay.py SkeldShip.glb texmap_skeld.json front.png "$(cat skeld_front_nodes.txt)"
-ROOMOFF=roomoff_skeld.json ALIAS=alias_skeld.json python3 overlay.py SkeldShip.glb texmap_skeld.json back.png '/HullItems/'
+ROOMFIT=room_fit.json ROOMOFF=roomoff_skeld.json ALIAS=alias_skeld.json python3 overlay.py SkeldShip.glb texmap_skeld.json front.png "$(cat skeld_front_nodes.txt)"
+ROOMFIT=room_fit.json ROOMOFF=roomoff_skeld.json ALIAS=alias_skeld.json python3 overlay.py SkeldShip.glb texmap_skeld.json back.png '/HullItems/'
 # 각각 투명 테두리를 잘라 WebP 로 저장하고, 잘린 위치를 tools/skeld-objects.mjs 의 LAYERS 에 적는다
 ```
 
@@ -44,4 +44,13 @@ ROOMOFF=roomoff_skeld.json ALIAS=alias_skeld.json python3 overlay.py SkeldShip.g
 
 팬아트 스켈드의 방은 원작보다 좁은 곳이 있어서, 원작 위치 그대로 놓으면 방 입구나 복도를 가리는 오브젝트가 생긴다
 (무기실 왼쪽 배관, 방어막실 왼쪽 난간). 오브젝트 레이어의 불투명 픽셀이 "걸을 수 있고 어느 방에도 속하지 않는 칸(복도)"을
-덮는지 검사해, 벽걸이 카메라 말고는 없도록 맞췄다. 무기실 왼쪽 배관과 거기 붙은 난간은 이 그림에 놓을 자리가 없어 넣지 않는다.
+덮는지 검사해, 벽걸이 카메라 말고는 없도록 맞췄다. (방별 맞춤을 한 뒤로는 무기실 왼쪽 배관·난간도 입구를 가리지 않아 다시 넣었다.)
+
+### 방별 맞춤 (room_fit.json)
+
+팬아트 스켈드는 방마다 원작과 위치·크기가 조금씩 다르다 (예: 무기실 52px 위, 통신실 58px 아래, 대부분 2~5% 큼).
+그래서 맵 전체에 변환 하나를 쓰면 방 안 오브젝트가 어긋난다. `match_rooms.py` 는 방마다 원작 바닥·벽 스프라이트
+(room_med, room_LEng, admin_walls, weap_platform 등)를 팬아트 그림 위에서 옮기고 키워 보며 색 차이가 가장 작은
+이동(dx, dy)과 배율(s)을 찾는다. `overlay.py` 에 `ROOMFIT=room_fit.json` 을 주면 그 방의 모든 오브젝트에 같은 값을 쓴다.
+`viz_anchor.py 방 dx dy s 출력.png` 로 맞춘 결과를 겹쳐 볼 수 있다. 방어막실은 원작 바닥 스프라이트가 바닥 아래층만이라
+자동 맞춤이 안 돼서 가운데 원을 기준으로 직접 정했다 (+20, 0, 1.0).

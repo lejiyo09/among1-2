@@ -19,11 +19,11 @@ export const obstacles = [
   { ellipse: [1915, 506, 108, 68] },
   { ellipse: [1705, 720, 108, 68] },
   { ellipse: [2120, 720, 108, 68] },
-  // 상부/하부 엔진 본체 (skeld-objects.webp 에 그린 원작 엔진 스프라이트 범위, 왼쪽 아래는 연료·정렬 콘솔 상자)
-  { poly: [[368, 445], [675, 445], [675, 625], [461, 625], [461, 679], [368, 679]] },
-  { poly: [[370, 1425], [677, 1425], [677, 1605], [463, 1605], [463, 1652], [370, 1652]] },
-  // 원자로 노심과 받침 (원작 스프라이트)
-  { rect: [0, 860, 200, 1270] },
+  // 상부/하부 엔진 본체 (skeld-objects.webp 에 그린 원작 엔진 범위, 왼쪽 아래는 연료·정렬 콘솔 상자)
+  { poly: [[344, 430], [658, 430], [658, 600], [470, 600], [470, 647], [344, 647]] },
+  { poly: [[351, 1462], [656, 1462], [656, 1628], [470, 1628], [470, 1672], [351, 1672]] },
+  // 원자로 노심과 받침
+  { rect: [0, 900, 150, 1276] },
   // 의무실 침대 4개
   { rect: [1046, 662, 1146, 752] }, { rect: [1046, 770, 1146, 856] },
   { rect: [1300, 662, 1398, 752] }, { rect: [1300, 770, 1398, 856] },
@@ -36,24 +36,23 @@ export const obstacles = [
   { rect: [2262, 1252, 2472, 1368] },
   // 산소실 하단 탱크와 화단
   { rect: [2330, 935, 2640, 1020] },
-  // 무기실 포탑 의자, 좌우 기계 구역
+  // 무기실 포탑 의자, 왼쪽 배관, 오른쪽 기계 구역
   { ellipse: [2765, 398, 72, 50] },
-  { poly: [[2575, 485], [2715, 485], [2715, 700], [2575, 700]] },
+  { rect: [2578, 330, 2640, 592] },
   { poly: [[2840, 290], [2970, 290], [2970, 700], [2840, 700]] },
   // 방어막실 기계 구역 3곳
   { poly: [[2575, 1395], [2700, 1395], [2700, 1470], [2620, 1545], [2575, 1545]] },
   { rect: [2838, 1488, 2975, 1722] },
   { rect: [2575, 1662, 2725, 1758] },
-  // 원작 오브젝트 레이어에 새로 그린 가구 (tools/recon/overlay.py 의 그림 범위)
-  { rect: [1134, 1300, 1339, 1428] },                 // 전기실 배전반
-  { rect: [832, 768, 972, 830] }, { rect: [784, 804, 830, 903] }, // 보안실 CCTV 책상, 서버 랙
-  { rect: [1429, 895, 1513, 994] },                   // 의무실 컴퓨터
-  { rect: [2500, 770, 2568, 849] },                   // 산소 탱크
-  { rect: [2100, 1840, 2151, 1930] }, { rect: [2469, 1840, 2520, 1930] }, // 통신실 양옆 모니터 책상
-  { rect: [2218, 1935, 2419, 1988] }, { ellipse: [2300, 1915, 30, 22] },  // 통신실 아래 책상과 의자
-  { rect: [3489, 912, 3556, 1052] }, { rect: [3440, 832, 3505, 895] },     // 항해실 조종·항로 콘솔
-  // 항해실 콘솔 2개
-  { rect: [3312, 885, 3398, 932] }, { rect: [3312, 1035, 3398, 1078] },
+  // 원작 오브젝트 레이어에 그린 가구 (tools/recon/overlay.py BBOX 범위의 아래쪽 = 바닥에 닿는 부분)
+  { rect: [1132, 1330, 1342, 1458] },                 // 전기실 배전반
+  { rect: [820, 752, 967, 815] }, { rect: [769, 790, 819, 894] }, // 보안실 CCTV 책상, 서버 랙
+  { rect: [1427, 874, 1515, 978] },                   // 의무실 컴퓨터
+  { rect: [2511, 750, 2589, 832] },                   // 산소 탱크
+  { rect: [2106, 1900, 2159, 1991] }, { rect: [2493, 1900, 2546, 1991] }, // 통신실 양옆 모니터 책상
+  { rect: [2230, 1990, 2441, 2052] },                 // 통신실 아래 책상
+  { rect: [3520, 902, 3590, 1049] }, { rect: [3456, 830, 3536, 898] },     // 항해실 조종·항로 콘솔
+  { rect: [3425, 870, 3492, 912] }, { rect: [3461, 950, 3530, 997] }, { rect: [3440, 1090, 3497, 1133] }, // 항해실 의자 3개
 ];
 
 // 자동 판정이 막았지만 실제로는 지나갈 수 있는 곳 (필요할 때만 추가)
@@ -61,12 +60,13 @@ export const openings = [];
 
 /**
  * 원작 오브젝트 레이어 (tools/recon/overlay.py 로 생성): 원작 SkeldShip 프리팹의 노드 위치에 원작 스프라이트를 놓고
- * 벤트·비상 버튼 15곳으로 맞춘 변환(X = 98.9u + 1977.9, Y = -94.5v + 609.7)으로 이 그림 좌표에 옮겼다.
+ * 벤트·비상 버튼 15곳으로 맞춘 변환(X = 98.9u + 1977.9, Y = -94.5v + 609.7)에 더해, 방마다 원작 바닥·벽 그림을
+ * 이 그림에 맞춰 찾은 이동·배율(tools/recon/room_fit.json)을 적용했다. 벤트 위치도 같은 변환을 쓴다.
  * back: 선체 바깥(추진기, 무기 포신, 방어막) — 배 그림 뒤 / front: 방 안 기계 — 배 그림 위, 플레이어 아래
  */
 export const LAYERS = [
   { image: 'assets/map/skeld-hull.webp', x: -315, y: 390, depth: 'back' },
-  { image: 'assets/map/skeld-objects.webp', x: 9, y: 417, depth: 'front' },
+  { image: 'assets/map/skeld-objects.webp', x: -26, y: 249, depth: 'front' },
 ];
 
 const task = (name, taskType, x, y, extra = {}) => ({ name, type: 'task', x, y, props: { taskType, room: extra.room ?? '', ...extra.props } });
@@ -110,11 +110,11 @@ export const objects = {
     task('card_admin', 'card', 2535, 1290, { room: 'Admin' }),
     // 긴 미션
     task('asteroids_weapons', 'asteroids', 2765, 470, { room: 'Weapons' }),
-    task('align_upper', 'align', 430, 650, { room: 'UpperEngine' }),
-    task('align_lower', 'align', 400, 1630, { room: 'LowerEngine' }),
+    task('align_upper', 'align', 375, 645, { room: 'UpperEngine' }),
+    task('align_lower', 'align', 381, 1670, { room: 'LowerEngine' }),
     task('fuel_storage', 'fuel', 1595, 1500, { room: 'Storage' }),
-    task('fuel_upper', 'fuel', 467, 640, { room: 'UpperEngine' }),
-    task('fuel_lower', 'fuel', 469, 1610, { room: 'LowerEngine' }),
+    task('fuel_upper', 'fuel', 447, 640, { room: 'UpperEngine' }),
+    task('fuel_lower', 'fuel', 451, 1660, { room: 'LowerEngine' }),
     task('scan_medbay', 'scan', 1345, 985, { room: 'MedBay' }),
     task('reactor_start', 'simon', 255, 1040, { room: 'Reactor' }),
     task('garbage_cafeteria', 'garbage', 2285, 235, { room: 'Cafeteria' }),
@@ -137,19 +137,19 @@ export const objects = {
 
   // 벤트: links 는 연결된 벤트 이름 (원작 스켈드 연결 구조)
   vents: [
-    { name: 'AdminVent', type: 'vent', x: 2190, y: 1400, props: { links: 'CafeVent,BigYVent' } },
-    { name: 'CafeVent', type: 'vent', x: 2300, y: 610, props: { links: 'AdminVent,BigYVent' } },
-    { name: 'BigYVent', type: 'vent', x: 2775, y: 1100, props: { links: 'AdminVent,CafeVent' } },
-    { name: 'ElecVent', type: 'vent', x: 1175, y: 1255, props: { links: 'MedVent,SecurityVent' } },
-    { name: 'MedVent', type: 'vent', x: 1090, y: 925, props: { links: 'ElecVent,SecurityVent' } },
-    { name: 'SecurityVent', type: 'vent', x: 945, y: 1140, props: { links: 'ElecVent,MedVent' } },
-    { name: 'UpperEngineVent', type: 'vent', x: 690, y: 400, props: { links: 'UpperReactorVent' } },
-    { name: 'UpperReactorVent', type: 'vent', x: 200, y: 830, props: { links: 'UpperEngineVent' } },
-    { name: 'LowerEngineVent', type: 'vent', x: 690, y: 1690, props: { links: 'LowerReactorVent' } },
-    { name: 'LowerReactorVent', type: 'vent', x: 300, y: 1150, props: { links: 'LowerEngineVent' } },
-    { name: 'WeaponsVent', type: 'vent', x: 2705, y: 350, props: { links: 'NavVentNorth' } },
+    { name: 'AdminVent', type: 'vent', x: 2198, y: 1407, props: { links: 'CafeVent,BigYVent' } },
+    { name: 'CafeVent', type: 'vent', x: 2346, y: 590, props: { links: 'AdminVent,BigYVent' } },
+    { name: 'BigYVent', type: 'vent', x: 2751, y: 1117, props: { links: 'AdminVent,CafeVent' } },
+    { name: 'ElecVent', type: 'vent', x: 1171, y: 1269, props: { links: 'MedVent,SecurityVent' } },
+    { name: 'MedVent', type: 'vent', x: 1086, y: 920, props: { links: 'ElecVent,SecurityVent' } },
+    { name: 'SecurityVent', type: 'vent', x: 938, y: 1160, props: { links: 'ElecVent,MedVent' } },
+    { name: 'UpperEngineVent', type: 'vent', x: 711, y: 364, props: { links: 'UpperReactorVent' } },
+    { name: 'UpperReactorVent', type: 'vent', x: 149, y: 838, props: { links: 'UpperEngineVent' } },
+    { name: 'LowerEngineVent', type: 'vent', x: 709, y: 1717, props: { links: 'LowerReactorVent' } },
+    { name: 'LowerReactorVent', type: 'vent', x: 242, y: 1161, props: { links: 'LowerEngineVent' } },
+    { name: 'WeaponsVent', type: 'vent', x: 2725, y: 293, props: { links: 'NavVentNorth' } },
     { name: 'NavVentNorth', type: 'vent', x: 3315, y: 850, props: { links: 'WeaponsVent' } },
-    { name: 'ShieldsVent', type: 'vent', x: 2775, y: 1735, props: { links: 'NavVentSouth' } },
+    { name: 'ShieldsVent', type: 'vent', x: 2783, y: 1739, props: { links: 'NavVentSouth' } },
     { name: 'NavVentSouth', type: 'vent', x: 3315, y: 1110, props: { links: 'ShieldsVent' } },
   ],
 
@@ -165,8 +165,8 @@ export const objects = {
 
   // 관리실 지도 탁자(원작 MapRoomConsole), 보안실 CCTV 책상(SurvConsole) — 원작 위치를 변환한 자리
   monitors: [
-    { name: 'AdminMap', type: 'admin', x: 2265, y: 1300 },
-    { name: 'SecurityCams', type: 'cams', x: 902, y: 812 },
+    { name: 'AdminMap', type: 'admin', x: 2279, y: 1296 },
+    { name: 'SecurityCams', type: 'cams', x: 893, y: 800 },
   ],
   // 감시 카메라 4대: 설치 위치(원작 SurvCamera 노드)와 비추는 복도 한가운데(vx, vy)
   cameras: [

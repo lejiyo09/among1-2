@@ -73,6 +73,8 @@ AX,BX,AY,BY=[float(v) for v in os.environ.get('FIT','98.9,1977.9,-94.5,609.7').s
 K=(abs(AX)+abs(AY))/2/100   # 스프라이트 배율 (원작 PPU 100 기준)
 INC=re.compile(sys.argv[4]); EXC=re.compile(sys.argv[5]) if len(sys.argv)>5 and sys.argv[5] else None
 ROOMOFF=json.load(open(os.environ['ROOMOFF'])) if os.environ.get('ROOMOFF') else {}
+# 방별 맞춤 (tools/recon/match_rooms.py): 방 노드 위치를 중심으로 s 배 확대한 뒤 (dx, dy) 이동
+ROOMFIT=json.load(open(os.environ['ROOMFIT'])) if os.environ.get('ROOMFIT') else {}
 nodes=world(glb(P+sys.argv[1]))
 ALIAS=json.load(open(os.environ['ALIAS'])) if os.environ.get('ALIAS') else {}
 items=[]
@@ -89,9 +91,12 @@ W,H=3587+OX*2,2064+OY*2
 canvas=Image.new('RGBA',(W,H),(0,0,0,0))
 items.sort(key=lambda t:(-t[0]['z'], t[0]['depth']))
 BOXES=[]
+ROOMNODE={n['path'].split('/')[2]:n for n in nodes if n['depth']==1}
 for n,im,s in items:
     ppu=s['ppu'] or 100
-    sw=max(1,int(im.size[0]*abs(n['sx'])*K*100/ppu)); sh=max(1,int(im.size[1]*abs(n['sy'])*K*100/ppu))
+    room=n['path'].split('/')[2] if n['path'].count('/')>=2 else ''
+    fdx,fdy,fs=(ROOMFIT[room][:3] if room in ROOMFIT else (0,0,1.0))
+    sw=max(1,int(im.size[0]*abs(n['sx'])*K*100/ppu*fs)); sh=max(1,int(im.size[1]*abs(n['sy'])*K*100/ppu*fs))
     img=im.resize((sw,sh),Image.LANCZOS)
     if n['sx']<0: img=img.transpose(Image.FLIP_LEFT_RIGHT)
     if n['sy']<0: img=img.transpose(Image.FLIP_TOP_BOTTOM)
@@ -100,7 +105,8 @@ for n,im,s in items:
     room=n['path'].split('/')[2] if n['path'].count('/')>=2 else ''
     # 보정: 노드 경로 끝이 일치하는 항목이 있으면 그것, 없으면 방 단위
     dx,dy=next((v for k,v in ROOMOFF.items() if '/' in k and n['path'].endswith(k)), ROOMOFF.get(room,[0,0]))
-    px=AX*n['x']+BX+OX+dx; py=AY*n['y']+BY+OY+dy
+    rn=ROOMNODE.get(room,n); cx,cy=AX*rn['x']+BX, AY*rn['y']+BY
+    px=cx+(AX*n['x']+BX-cx)*fs+fdx+OX+dx; py=cy+(AY*n['y']+BY-cy)*fs+fdy+OY+dy
     ox_,oy_=int(px-piv['m_X']*img.size[0]),int(py-(1-piv['m_Y'])*img.size[1])
     canvas.alpha_composite(img,(ox_,oy_))
     bb=img.getbbox()
