@@ -66,7 +66,7 @@ export const openings = [];
  */
 export const LAYERS = [
   { image: 'assets/map/skeld-hull.webp', x: -315, y: 390, depth: 'back' },
-  { image: 'assets/map/skeld-objects.webp', x: 9, y: 305, depth: 'front' },
+  { image: 'assets/map/skeld-objects.webp', x: 9, y: 417, depth: 'front' },
 ];
 
 const task = (name, taskType, x, y, extra = {}) => ({ name, type: 'task', x, y, props: { taskType, room: extra.room ?? '', ...extra.props } });

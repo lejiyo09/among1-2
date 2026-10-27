@@ -39,3 +39,9 @@ ROOMOFF=roomoff_skeld.json ALIAS=alias_skeld.json python3 overlay.py SkeldShip.g
 ROOMOFF=roomoff_skeld.json ALIAS=alias_skeld.json python3 overlay.py SkeldShip.glb texmap_skeld.json back.png '/HullItems/'
 # 각각 투명 테두리를 잘라 WebP 로 저장하고, 잘린 위치를 tools/skeld-objects.mjs 의 LAYERS 에 적는다
 ```
+
+### 확인 방법: 복도 침범 검사
+
+팬아트 스켈드의 방은 원작보다 좁은 곳이 있어서, 원작 위치 그대로 놓으면 방 입구나 복도를 가리는 오브젝트가 생긴다
+(무기실 왼쪽 배관, 방어막실 왼쪽 난간). 오브젝트 레이어의 불투명 픽셀이 "걸을 수 있고 어느 방에도 속하지 않는 칸(복도)"을
+덮는지 검사해, 벽걸이 카메라 말고는 없도록 맞췄다. 무기실 왼쪽 배관과 거기 붙은 난간은 이 그림에 놓을 자리가 없어 넣지 않는다.
