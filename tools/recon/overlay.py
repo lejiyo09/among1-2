@@ -91,6 +91,7 @@ W,H=3587+OX*2,2064+OY*2
 canvas=Image.new('RGBA',(W,H),(0,0,0,0))
 items.sort(key=lambda t:(-t[0]['z'], t[0]['depth']))
 BOXES=[]
+DUMPED=[]
 ROOMNODE={n['path'].split('/')[2]:n for n in nodes if n['depth']==1}
 for n,im,s in items:
     ppu=s['ppu'] or 100
@@ -109,8 +110,11 @@ for n,im,s in items:
     px=cx+(AX*n['x']+BX-cx)*fs+fdx+OX+dx; py=cy+(AY*n['y']+BY-cy)*fs+fdy+OY+dy
     ox_,oy_=int(px-piv['m_X']*img.size[0]),int(py-(1-piv['m_Y'])*img.size[1])
     canvas.alpha_composite(img,(ox_,oy_))
+    if os.environ.get('DUMP'):
+        k_=len(DUMPED); img.save(os.path.join(os.environ['DUMP'],f'{k_}.png')); DUMPED.append({'path':n['path'],'x':ox_-OX,'y':oy_-OY,'w':img.size[0],'h':img.size[1],'z':n['z']})
     bb=img.getbbox()
     if bb: BOXES.append((n['path'],ox_+bb[0]-OX,oy_+bb[1]-OY,ox_+bb[2]-OX,oy_+bb[3]-OY))
 canvas.save(sys.argv[3])
+if os.environ.get('DUMP'): json.dump(DUMPED,open(os.path.join(os.environ['DUMP'],'items.json'),'w'),indent=0)
 if os.environ.get('BBOX'): json.dump(BOXES,open(os.environ['BBOX'],'w'),indent=0)
 print('items',len(items),'canvas',W,H,'pad',OX,OY)

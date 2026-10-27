@@ -61,11 +61,21 @@ export function createServer(manager) {
     fs.stat(file, (err, st) => {
       if (err || !st.isFile()) { res.writeHead(404, { 'content-type': 'text/plain' }); res.end('not found'); return; }
       const ext = path.extname(file).toLowerCase();
+      // 바뀐 파일은 바로 다시 받도록 ETag 로 재검증 (바뀌지 않았으면 304 로 본문 없이)
+      const etag = `"${st.size.toString(36)}-${Math.floor(st.mtimeMs).toString(36)}"`;
+      // 코드·맵 그림(맵 데이터와 짝이 맞아야 함)은 항상 재검증, 소리·글꼴·UI 그림은 하루 캐시
+      const isMap = file.includes(`${path.sep}assets${path.sep}map${path.sep}`);
+      const cache = !isMap && (['.png', '.ogg', '.wav', '.mp3', '.ttf', '.webp'].includes(ext) || file.endsWith('phaser.min.js')) ? 'public, max-age=86400' : 'no-cache';
+      if (req.headers['if-none-match'] === etag) {
+        res.writeHead(304, { etag, 'cache-control': cache });
+        res.end();
+        return;
+      }
       res.writeHead(200, {
         'content-type': MIME[ext] ?? 'application/octet-stream',
         'content-length': st.size,
-        // 코드 파일은 배포 즉시 반영되도록 재검증, 큰 에셋은 하루 캐시
-        'cache-control': ['.png', '.ogg', '.wav', '.mp3', '.ttf', '.webp'].includes(ext) || file.endsWith('phaser.min.js') ? 'public, max-age=86400' : 'no-cache',
+        etag,
+        'cache-control': cache,
         'x-content-type-options': 'nosniff',
         'referrer-policy': 'no-referrer',
       });

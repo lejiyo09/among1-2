@@ -23,7 +23,7 @@ export const obstacles = [
   { poly: [[344, 430], [658, 430], [658, 600], [470, 600], [470, 647], [344, 647]] },
   { poly: [[351, 1462], [656, 1462], [656, 1628], [470, 1628], [470, 1672], [351, 1672]] },
   // 원자로 노심과 받침
-  { rect: [0, 900, 150, 1276] },
+  { rect: [35, 910, 185, 1286] },
   // 의무실 침대 4개
   { rect: [1046, 662, 1146, 752] }, { rect: [1046, 770, 1146, 856] },
   { rect: [1300, 662, 1398, 752] }, { rect: [1300, 770, 1398, 856] },
@@ -45,7 +45,7 @@ export const obstacles = [
   { rect: [2838, 1488, 2975, 1722] },
   { rect: [2575, 1662, 2725, 1758] },
   // 원작 오브젝트 레이어에 그린 가구 (tools/recon/overlay.py BBOX 범위의 아래쪽 = 바닥에 닿는 부분)
-  { rect: [1132, 1330, 1342, 1458] },                 // 전기실 배전반
+  { rect: [1132, 1355, 1342, 1483] },                 // 전기실 배전반
   { rect: [820, 752, 967, 815] }, { rect: [769, 790, 819, 894] }, // 보안실 CCTV 책상, 서버 랙
   { rect: [1427, 874, 1515, 978] },                   // 의무실 컴퓨터
   { rect: [2511, 750, 2589, 832] },                   // 산소 탱크
@@ -66,7 +66,7 @@ export const openings = [];
  */
 export const LAYERS = [
   { image: 'assets/map/skeld-hull.webp', x: -315, y: 390, depth: 'back' },
-  { image: 'assets/map/skeld-objects.webp', x: -26, y: 249, depth: 'front' },
+  { image: 'assets/map/skeld-objects.webp', x: 9, y: 249, depth: 'front' },
 ];
 
 const task = (name, taskType, x, y, extra = {}) => ({ name, type: 'task', x, y, props: { taskType, room: extra.room ?? '', ...extra.props } });
@@ -144,9 +144,9 @@ export const objects = {
     { name: 'MedVent', type: 'vent', x: 1086, y: 920, props: { links: 'ElecVent,SecurityVent' } },
     { name: 'SecurityVent', type: 'vent', x: 938, y: 1160, props: { links: 'ElecVent,MedVent' } },
     { name: 'UpperEngineVent', type: 'vent', x: 711, y: 364, props: { links: 'UpperReactorVent' } },
-    { name: 'UpperReactorVent', type: 'vent', x: 149, y: 838, props: { links: 'UpperEngineVent' } },
+    { name: 'UpperReactorVent', type: 'vent', x: 205, y: 850, props: { links: 'UpperEngineVent' } },
     { name: 'LowerEngineVent', type: 'vent', x: 709, y: 1717, props: { links: 'LowerReactorVent' } },
-    { name: 'LowerReactorVent', type: 'vent', x: 242, y: 1161, props: { links: 'LowerEngineVent' } },
+    { name: 'LowerReactorVent', type: 'vent', x: 277, y: 1171, props: { links: 'LowerEngineVent' } },
     { name: 'WeaponsVent', type: 'vent', x: 2725, y: 293, props: { links: 'NavVentNorth' } },
     { name: 'NavVentNorth', type: 'vent', x: 3315, y: 850, props: { links: 'WeaponsVent' } },
     { name: 'ShieldsVent', type: 'vent', x: 2783, y: 1739, props: { links: 'NavVentSouth' } },
@@ -166,7 +166,7 @@ export const objects = {
   // 관리실 지도 탁자(원작 MapRoomConsole), 보안실 CCTV 책상(SurvConsole) — 원작 위치를 변환한 자리
   monitors: [
     { name: 'AdminMap', type: 'admin', x: 2279, y: 1296 },
-    { name: 'SecurityCams', type: 'cams', x: 893, y: 800 },
+    { name: 'SecurityCams', type: 'cams', x: 893, y: 835 },
   ],
   // 감시 카메라 4대: 설치 위치(원작 SurvCamera 노드)와 비추는 복도 한가운데(vx, vy)
   cameras: [

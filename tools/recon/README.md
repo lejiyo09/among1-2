@@ -54,3 +54,9 @@ ROOMFIT=room_fit.json ROOMOFF=roomoff_skeld.json ALIAS=alias_skeld.json python3 
 이동(dx, dy)과 배율(s)을 찾는다. `overlay.py` 에 `ROOMFIT=room_fit.json` 을 주면 그 방의 모든 오브젝트에 같은 값을 쓴다.
 `viz_anchor.py 방 dx dy s 출력.png` 로 맞춘 결과를 겹쳐 볼 수 있다. 방어막실은 원작 바닥 스프라이트가 바닥 아래층만이라
 자동 맞춤이 안 돼서 가운데 원을 기준으로 직접 정했다 (+20, 0, 1.0).
+
+### 원작 스크린샷과 같은 좌표로 비교 (align/)
+
+`align/shot_fit.py` 는 oskarkraak/Among-Us-Maps 의 원작 방 스크린샷을 팬아트 스켈드 좌표에 맞춰(배율 약 2.16) `ref.png` 를 만든다.
+`align/side.py x0 y0 x1 y1 출력.png` 는 지금 게임 그림(팬아트+오브젝트+벤트)과 원작 스크린샷을 같은 영역으로 나란히 보여 준다.
+원자로(오브젝트 35px 오른쪽, 10px 아래), 전기실 배전반(25px 아래)은 이것으로 확인해 room_fit.json / roomoff_skeld.json 에 반영했다.
