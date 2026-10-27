@@ -41,6 +41,10 @@ export class GameScene extends Phaser.Scene {
     this.mapObjects = [];
     this.buildMap(this.ctx.store.map);
 
+    // 벤트 들어가기·나오기 동작
+    this.ventAnims = [];
+    this.ctx.net.on('fx', (m) => { if (m.kind === 'vent') this.playVent(m); });
+
     // 미션 위치 표시 (내 미션의 현재 단계만)
     this.taskMarkers = this.add.graphics().setDepth(5);
     // 감시 카메라 불빛: 누군가 CCTV 를 보는 동안 빨갛게 깜빡인다 (원작)
@@ -92,7 +96,8 @@ export class GameScene extends Phaser.Scene {
     // back: 배 그림 뒤(선체 추진기 등), front: 배 그림 위·캐릭터 아래(엔진, 원자로 노심, 스캐너 등)
     map.layers.forEach((l, i) => add(this.add.image(l.x, l.y, `layer_${map.id}_${i}`).setOrigin(0, 0).setDepth(l.depth === 'back' ? -11 : -9)));
     // 벤트 (스켈드 그림에는 없어서 원작 스프라이트로 그린다)
-    for (const v of map.vents) add(this.add.image(v.x, v.y, 'ventgrate').setScale(1.1).setDepth(-5));
+    this.ventGrates = new Map();
+    for (const v of map.vents) this.ventGrates.set(`${v.x},${v.y}`, add(this.add.image(v.x, v.y, 'ventgrate').setScale(1.1).setDepth(-5)));
     // 문
     for (const d of map.doors) {
       const [x0, y0, x1, y1] = d.rect;
@@ -167,7 +172,38 @@ export class GameScene extends Phaser.Scene {
     this.anims.create({ key: `${key}_walk`, frames: Array.from({ length: 12 }, (_, i) => ({ key, frame: `walk${i + 1}` })), frameRate: 24, repeat: -1 });
     this.anims.create({ key: `${key}_ghost`, frames: Array.from({ length: 48 }, (_, i) => ({ key, frame: `ghost${i + 1}` })), frameRate: 24, repeat: -1 });
     this.anims.create({ key: `${key}_die`, frames: Array.from({ length: 42 }, (_, i) => ({ key, frame: `dead${i + 1}` })), frameRate: 24, repeat: 0 });
-    this.anims.create({ key: `${key}_vent`, frames: Array.from({ length: 7 }, (_, i) => ({ key, frame: `vent${i + 1}` })), frameRate: 20, repeat: 0 });
+    this.anims.create({ key: `${key}_vent`, frames: Array.from({ length: 7 }, (_, i) => ({ key, frame: `vent${i + 1}` })), frameRate: 14, repeat: 0 });
+  }
+
+  /**
+   * 원작 벤트 동작: 뚜껑이 들리고 캐릭터가 뛰어올라 빠져 들어간다 (나올 때는 거꾸로).
+   * 나오는 동안에는 그 자리의 실제 캐릭터를 잠깐 숨겨 두 번 보이지 않게 한다
+   */
+  playVent({ x, y, enter, color, flip }) {
+    if (color === undefined) return;
+    const key = ensurePhaserTexture(this, color);
+    this.ensureAnims(key);
+    const s = this.add.sprite(x, y + 6, key, enter ? 'vent1' : 'vent7').setOrigin(0.5, 0.9).setScale(SPRITE_SCALE).setFlipX(!!flip);
+    this.bodyLayer.add(s);
+    if (enter) s.play(`${key}_vent`); else s.playReverse(`${key}_vent`);
+    const until = this.time.now + 560;
+    const rec = { x, y, until, enter };
+    this.ventAnims.push(rec);
+    s.on('animationcomplete', () => { s.destroy(); });
+    this.time.delayedCall(600, () => { if (s.active) s.destroy(); this.ventAnims = this.ventAnims.filter((r) => r !== rec); });
+    // 뚜껑이 들썩인다
+    const g = this.ventGrates.get(`${x},${y}`);
+    if (g) {
+      this.tweens.killTweensOf(g);
+      g.setScale(1.1).setAngle(0);
+      this.tweens.add({ targets: g, y: y - 10, angle: -12, duration: 110, yoyo: true, ease: 'Quad.easeOut', onComplete: () => g.setPosition(x, y).setAngle(0) });
+    }
+  }
+
+  /** 나오는 동작이 진행 중인 벤트 자리인가 */
+  ventHiding(x, y) {
+    const now = this.time.now;
+    return this.ventAnims.some((r) => !r.enter && now < r.until && Math.hypot(r.x - x, r.y - y) < 40);
   }
 
   /** flags: 1 왼쪽, 2 이동 중, 4 유령, 8 스캔 중 */
@@ -220,7 +256,7 @@ export class GameScene extends Phaser.Scene {
 
     // 내 캐릭터
     const seen = new Set();
-    if (me && !(store.me.flags & 16)) {
+    if (me && !(store.me.flags & 16) && !this.ventHiding(store.render.x, store.render.y)) {
       const c = this.crewFor(me.id, me.color);
       c.container.setVisible(true);
       this.drawCrew(c, store.render.x, store.render.y, myFlags, me.name, nameColor(me.id));
@@ -231,7 +267,7 @@ export class GameScene extends Phaser.Scene {
       const info = store.player(id);
       const pos = store.remotePos(id);
       if (!info || !pos) continue;
-      if (!this.isVisible(pos.x, pos.y)) continue;
+      if (!this.isVisible(pos.x, pos.y) || this.ventHiding(pos.x, pos.y)) continue;
       const c = this.crewFor(id, info.color);
       c.container.setVisible(true);
       this.drawCrew(c, pos.x, pos.y, pos.f, info.name, nameColor(id));

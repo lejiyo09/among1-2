@@ -676,7 +676,8 @@ export class Room {
         .filter((o) => o.d <= VENT_RANGE)
         .sort((a, b) => a.d - b.d)[0]?.v;
       if (!vent) return ERR.OUT_OF_RANGE;
-      this.fx('vent', { x: vent.x, y: vent.y, enter: true }, (r) => r.id !== p.id && this.canSeePoint(r, vent.x, vent.y));
+      // 원작: 벤트 들어가기·나오기 동작은 본인과 그 자리가 보이는 사람에게 보인다
+      this.fx('vent', { x: vent.x, y: vent.y, enter: true, color: p.color, flip: p.facing < 0 }, (r) => r.id === p.id || this.canSeePoint(r, vent.x, vent.y));
       p.inVent = vent.id;
       p.x = vent.x; p.y = vent.y; p.inputQueue = [];
     } else if (action === 'move') {
@@ -688,7 +689,7 @@ export class Room {
       if (!p.inVent) return ERR.NOT_ALLOWED;
       const v = this.map.vents.find((x) => x.id === p.inVent);
       p.inVent = null;
-      this.fx('vent', { x: v.x, y: v.y, enter: false }, (r) => r.id !== p.id && this.canSeePoint(r, v.x, v.y));
+      this.fx('vent', { x: v.x, y: v.y, enter: false, color: p.color, flip: p.facing < 0 }, (r) => r.id === p.id || this.canSeePoint(r, v.x, v.y));
     }
     this.markDirty();
     return null;

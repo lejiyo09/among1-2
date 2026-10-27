@@ -284,7 +284,7 @@ export class Hud {
     if (m.kind === 'sabotage') toast(`${SABO_NAMES[m.sabotage] ?? '사보타주'} 발생!`, 'error');
     if (m.kind === 'sabotageFixed') toast('사보타주가 해결되었습니다.');
     if (m.kind === 'doors' && m.closed) play('doorClose', { vol: 0.5 });
-    if (m.kind === 'vent') play('vent', { vol: 0.6 });
+    if (m.kind === 'vent' && m.color !== this.store.player(this.store.playerId)?.color) play('vent', { vol: 0.6 }); // 내 동작 소리는 버튼에서 이미 낸다
   }
 
   onKey(e) {
