@@ -12,8 +12,16 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { PNG } from 'pngjs';
+import crypto from 'node:crypto';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+/** 그림 주소 뒤에 내용 해시를 붙인다: 그림이 바뀌면 주소가 바뀌어 브라우저가 예전 캐시를 쓰지 않는다 */
+function versioned(rel) {
+  const file = path.join(root, 'client', rel);
+  if (!fs.existsSync(file)) return rel;
+  return `${rel}?v=${crypto.createHash('sha1').update(fs.readFileSync(file)).digest('hex').slice(0, 10)}`;
+}
 const names = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 for (const name of names.length ? names : ['skeld', 'mira']) {
   const cfg = await import(pathToFileURL(path.join(root, `tools/${name}-objects.mjs`)).href);
@@ -129,13 +137,13 @@ const tmj = {
     { name: 'mapId', type: 'string', value: meta.mapId },
     { name: 'kind', type: 'string', value: 'game' },
     { name: 'displayName', type: 'string', value: meta.displayName },
-    { name: 'image', type: 'string', value: meta.image },
+    { name: 'image', type: 'string', value: versioned(meta.image) },
     { name: 'imageWidth', type: 'int', value: W },
     { name: 'imageHeight', type: 'int', value: H },
-    ...(meta.minimap ? [{ name: 'minimap', type: 'string', value: meta.minimap }] : []),
+    ...(meta.minimap ? [{ name: 'minimap', type: 'string', value: versioned(meta.minimap) }] : []),
     ...(meta.commsMode ? [{ name: 'commsMode', type: 'string', value: meta.commsMode }] : []),
     ...(meta.reactorTime ? [{ name: 'reactorTime', type: 'int', value: meta.reactorTime }] : []),
-    ...(LAYERS?.length ? [{ name: 'layers', type: 'string', value: JSON.stringify(LAYERS) }] : []),
+    ...(LAYERS?.length ? [{ name: 'layers', type: 'string', value: JSON.stringify(LAYERS.map((l) => ({ ...l, image: versioned(l.image) }))) }] : []),
     { name: 'source', type: 'string', value: meta.source },
   ],
   tilesets: [{ firstgid: 1, name: 'collision', tilewidth: CELL, tileheight: CELL, tilecount: 2, columns: 2, image: 'collision-tile.png', imagewidth: CELL * 2, imageheight: CELL }],
