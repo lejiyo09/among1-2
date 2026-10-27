@@ -34,6 +34,7 @@ export const ERR = Object.freeze({
   TOO_FAST: 'TOO_FAST',
   WRONG_ANSWER: 'WRONG_ANSWER',
   SERVER_FULL: 'SERVER_FULL',
+  COMMS_DOWN: 'COMMS_DOWN',           // 통신 방해 중이라 관리실 지도·CCTV 를 쓸 수 없음
   INTERNAL: 'INTERNAL',
 });
 
@@ -65,7 +66,9 @@ export const C2S = {
   setSettings: { settings: obj({}), rid: RID },
   ready: { ready: bool(), rid: RID },
   start: { rid: RID },
-  endPractice: { rid: RID }, // 연습 모드: 게임을 끝내고 대기실로
+  endPractice: { rid: RID },
+  admin: { rid: RID },                 // 관리실 지도: 방별 인원 요청 (탁자 앞에서만)
+  cams: { on: bool(), rid: RID },      // 보안실 CCTV 보기 시작/끝 // 연습 모드: 게임을 끝내고 대기실로
   kick: { playerId: ID, rid: RID },
   chat: { text: str(1, MAX_CHAT), rid: RID },
   input: { seq: int(0, 2 ** 31), d: arr(int(-1, 15), MAX_INPUT_BATCH) },

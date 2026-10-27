@@ -98,7 +98,8 @@ for n,im,s in items:
     if abs(n['rot'])>1e-3: img=img.rotate(-math.degrees(n['rot']),expand=True,resample=Image.BICUBIC)
     piv=s['pivot'] or {'m_X':0.5,'m_Y':0.5}
     room=n['path'].split('/')[2] if n['path'].count('/')>=2 else ''
-    dx,dy=ROOMOFF.get(room,[0,0])
+    # 보정: 노드 경로 끝이 일치하는 항목이 있으면 그것, 없으면 방 단위
+    dx,dy=next((v for k,v in ROOMOFF.items() if '/' in k and n['path'].endswith(k)), ROOMOFF.get(room,[0,0]))
     px=AX*n['x']+BX+OX+dx; py=AY*n['y']+BY+OY+dy
     ox_,oy_=int(px-piv['m_X']*img.size[0]),int(py-(1-piv['m_Y'])*img.size[1])
     canvas.alpha_composite(img,(ox_,oy_))

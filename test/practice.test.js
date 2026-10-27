@@ -32,14 +32,14 @@ test('연습: 혼자 시작하면 더미가 생기고, 고른 역할을 받는�
   assert.equal(dummies.length, 6, '미라 HQ 더미 6명 (원작 DummyLocations)');
   assert.equal(me.role, 'impostor');
   assert.ok(dummies.every((d) => d.role === 'crewmate' && d.tasks.length === 0));
-  // 더미를 죽여도 게임은 끝나지 않는다
+  // 더미를 하나 남길 때까지는 계속된다
   advance(TIMINGS.firstKillCooldown * 1000 + 100);
-  for (const d of dummies) {
+  for (const d of dummies.slice(0, 2)) {
     teleport(me, d.x + 10, d.y);
     me.killReadyAt = 0;
     assert.equal(room.handle(me, { t: 'kill', targetId: d.id }), null);
   }
-  assert.equal(room.phase, PHASES.PLAYING, '임포스터 ≥ 승무원이어도 계속');
+  assert.equal(room.phase, PHASES.PLAYING);
   // 신고 → 회의, 더미는 건너뛰기 투표 → 내가 투표하면 바로 결과 → 다시 게임
   const body = [...room.bodies.values()][0];
   teleport(me, body.x + 10, body.y);
@@ -54,6 +54,31 @@ test('연습: 혼자 시작하면 더미가 생기고, 고른 역할을 받는�
   assert.equal(room.handle(me, { t: 'endPractice' }), null);
   assert.equal(room.phase, PHASES.LOBBY);
   assert.equal(room.players.size, 1);
+});
+
+test('연습: 임포스터가 더미를 줄여 수가 같아지면 임포스터 승리', () => {
+  const { room, me, advance } = setup({ map: 'skeld', practiceRole: 'impostor' });
+  room.handle(me, { t: 'start' });
+  advance(6000);
+  const dummies = [...room.players.values()].filter((p) => p.dummy);
+  for (const d of dummies.slice(0, -1)) {
+    teleport(me, d.x + 10, d.y);
+    me.killReadyAt = 0;
+    assert.equal(room.handle(me, { t: 'kill', targetId: d.id }), null);
+  }
+  assert.equal(room.phase, PHASES.ENDED);
+  assert.deepEqual([room.endInfo.winner, room.endInfo.reason], ['impostor', 'crew_outnumbered']);
+});
+
+test('연습: 승무원으로 미션을 모두 끝내면 승무원 승리', () => {
+  const { room, me, advance } = setup({ map: 'skeld', practiceRole: 'crewmate' });
+  room.handle(me, { t: 'start' });
+  advance(6000);
+  assert.equal(room.phase, PHASES.PLAYING, '임포스터가 없어도 바로 끝나지 않는다');
+  for (const t of me.tasks) { t.step = t.spots.length; t.done = true; }
+  room.checkWinNow();
+  assert.equal(room.phase, PHASES.ENDED);
+  assert.deepEqual([room.endInfo.winner, room.endInfo.reason], ['crew', 'tasks']);
 });
 
 test('연습: 승무원으로 사보타주 시간이 지나도 지지 않고, 나가면 방이 닫힌다', () => {

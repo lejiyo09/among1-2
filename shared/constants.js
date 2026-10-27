@@ -16,6 +16,7 @@ export const BASE_SPEED = 2.5 * UNIT;      // 원작 기본 속도 1x ≈ 2.5 �
 export const USE_RANGE = 1.3 * UNIT;       // 미션·콘솔 사용 거리
 export const REPORT_RANGE = 1.3 * UNIT;    // 시체 신고 거리
 export const VENT_RANGE = 1.0 * UNIT;
+export const CAM_RADIUS = 3.4 * UNIT;        // 감시 카메라 한 대가 비추는 반경
 
 /** 원작 킬 거리: 짧음 1.0 / 보통 1.8 / 김 2.5 유닛 */
 export const KILL_DISTANCES = { short: 1.0 * UNIT, medium: 1.8 * UNIT, long: 2.5 * UNIT };

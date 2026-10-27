@@ -27,6 +27,7 @@ export function toast(text, kind = 'info', ms = 2600) {
 
 /** 서버 오류 코드 → 한국어 */
 export const ERROR_TEXT = {
+  COMMS_DOWN: '통신 방해 중에는 사용할 수 없습니다.',
   BAD_MESSAGE: '잘못된 요청입니다.',
   RATE_LIMITED: '너무 빠르게 요청하고 있습니다.',
   NOT_IN_ROOM: '방에 들어가 있지 않습니다.',

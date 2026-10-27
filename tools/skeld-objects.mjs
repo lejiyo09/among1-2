@@ -147,7 +147,7 @@ export const objects = {
     { name: 'UpperReactorVent', type: 'vent', x: 200, y: 830, props: { links: 'UpperEngineVent' } },
     { name: 'LowerEngineVent', type: 'vent', x: 690, y: 1690, props: { links: 'LowerReactorVent' } },
     { name: 'LowerReactorVent', type: 'vent', x: 300, y: 1150, props: { links: 'LowerEngineVent' } },
-    { name: 'WeaponsVent', type: 'vent', x: 2655, y: 420, props: { links: 'NavVentNorth' } },
+    { name: 'WeaponsVent', type: 'vent', x: 2705, y: 350, props: { links: 'NavVentNorth' } },
     { name: 'NavVentNorth', type: 'vent', x: 3315, y: 850, props: { links: 'WeaponsVent' } },
     { name: 'ShieldsVent', type: 'vent', x: 2775, y: 1735, props: { links: 'NavVentSouth' } },
     { name: 'NavVentSouth', type: 'vent', x: 3315, y: 1110, props: { links: 'ShieldsVent' } },
@@ -161,6 +161,19 @@ export const objects = {
     { name: 'o2_admin', type: 'console', x: 2505, y: 1150, props: { sabotage: 'o2' } },
     { name: 'lights_electrical', type: 'console', x: 1150, y: 1460, props: { sabotage: 'lights' } },
     { name: 'comms_comms', type: 'console', x: 2310, y: 1795, props: { sabotage: 'comms' } },
+  ],
+
+  // 관리실 지도 탁자(원작 MapRoomConsole), 보안실 CCTV 책상(SurvConsole) — 원작 위치를 변환한 자리
+  monitors: [
+    { name: 'AdminMap', type: 'admin', x: 2265, y: 1300 },
+    { name: 'SecurityCams', type: 'cams', x: 902, y: 812 },
+  ],
+  // 감시 카메라 4대: 설치 위치(원작 SurvCamera 노드)와 비추는 복도 한가운데(vx, vy)
+  cameras: [
+    { name: 'CamNorthHall', type: 'camera', x: 1389, y: 440, props: { vx: 1395, vy: 520 } },
+    { name: 'CamAdminHall', type: 'camera', x: 2023, y: 1088, props: { vx: 1995, vy: 1160 } },
+    { name: 'CamCrossHall', type: 'camera', x: 512, y: 950, props: { vx: 555, vy: 1010 } },
+    { name: 'CamYHall', type: 'camera', x: 3071, y: 898, props: { vx: 3050, vy: 975 } },
   ],
 
   // 문 13개 (원작 스켈드와 같은 방 구성). 닫히면 사각형 영역이 막힌다.

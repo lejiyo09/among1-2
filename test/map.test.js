@@ -88,6 +88,12 @@ test(`${mapId}: 모든 사보타주 콘솔과 비상 버튼은 접근 가능`, (
   }
   const e = map.emergency;
   assert.ok(nearestReachable(e.x, e.y) <= e.range * 0.85, 'emergency button too far');
+  // 관리실 지도 탁자, CCTV 책상
+  for (const m of [map.adminTable, map.camsConsole].filter(Boolean)) {
+    assert.ok(nearestReachable(m.x, m.y) <= USE_RANGE * 0.75, `monitor (${m.x},${m.y}) too far`);
+  }
+  // 카메라가 비추는 곳은 걸어갈 수 있는 복도여야 한다
+  for (const c of map.cameras) assert.ok(nearestReachable(c.vx, c.vy) < map.cell * 2, `camera ${c.id} view not on floor`);
 });
 
 test(`${mapId}: 모든 벤트는 접근 가능하고 연결이 양방향`, () => {

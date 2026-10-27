@@ -4,7 +4,7 @@
 // - 시간은 주입된 now() 로만 읽어서 테스트에서 시계를 조작할 수 있다.
 import {
   PHASES, ROLES, DEFAULT_SETTINGS, SETTING_LIMITS, TIMINGS, COLORS, MAX_PLAYERS, MIN_PLAYERS,
-  KILL_DISTANCES, REPORT_RANGE, USE_RANGE, VENT_RANGE, VISION_BASE, TICK_RATE, SNAPSHOT_RATE,
+  KILL_DISTANCES, REPORT_RANGE, USE_RANGE, VENT_RANGE, VISION_BASE, TICK_RATE, SNAPSHOT_RATE, CAM_RADIUS,
 } from '../../shared/constants.js';
 import { ERR, sanitizeChat } from '../../shared/protocol.js';
 import { CollisionWorld } from '../../shared/map.js';
@@ -64,7 +64,8 @@ export class Room {
   /**
    * @param {{code:string, maps?:Record<string,any>, map?:any, now?:()=>number, minPlayers?:number, practice?:boolean, onEmpty?:(room:Room)=>void, onPlayerRemoved?:(p:Player)=>void}} opts
    * maps: 맵 id → 맵 데이터. kind 가 'lobby' 인 맵은 대기실, 나머지는 게임 맵. (map 하나만 주면 대기실도 그 맵을 쓴다)
-   * practice: 원작 "자유 플레이"처럼 혼자 하는 연습 방. 다른 사람은 들어올 수 없고, 더미 크루원이 서 있으며, 승패로 끝나지 않는다
+   * practice: 원작 "자유 플레이"처럼 혼자 하는 연습 방. 다른 사람은 들어올 수 없고, 더미 크루원이 서 있다.
+   *   승무원으로 미션을 모두 끝내면 승무원 승리, 임포스터로 더미를 줄여 수가 같아지면 임포스터 승리 (사보타주 시간 초과로는 지지 않는다)
    */
   constructor({ code, maps, map, now = Date.now, minPlayers = MIN_PLAYERS, practice = false, onEmpty = () => {}, onPlayerRemoved = () => {} }) {
     this.code = code;
@@ -262,6 +263,8 @@ export class Room {
    */
   handle(p, msg) {
     if (p.removed) return ERR.NOT_IN_ROOM;
+    // CCTV 를 보는 동안에는 다른 행동을 할 수 없다 (원작: 화면을 닫아야 움직이고 행동할 수 있다)
+    if (p.watchingCams && ['kill', 'vent', 'taskStart', 'report', 'emergency', 'fix', 'sabotage', 'admin'].includes(msg.t)) return ERR.NOT_ALLOWED;
     switch (msg.t) {
       case 'input': return this.onInput(p, msg);
       case 'chat': return this.onChat(p, msg.text);
@@ -270,6 +273,8 @@ export class Room {
       case 'ready': return this.onReady(p, msg.ready);
       case 'start': return this.onStart(p);
       case 'endPractice': return this.onEndPractice(p);
+      case 'admin': return this.onAdmin(p);
+      case 'cams': return this.onCams(p, msg.on);
       case 'kick': return this.onKick(p, msg.playerId);
       case 'taskStart': return this.onTaskStart(p, msg.taskId);
       case 'taskComplete': return this.onTaskComplete(p, msg.taskId, msg.answer);
@@ -300,7 +305,7 @@ export class Room {
 
   canMove(p) {
     if (!(this.phase === PHASES.LOBBY || this.phase === PHASES.PLAYING)) return false;
-    if (p.removed || p.inVent || p.activeTask) return false;
+    if (p.removed || p.inVent || p.activeTask || p.watchingCams) return false;
     return true;
   }
 
@@ -685,6 +690,51 @@ export class Room {
     return null;
   }
 
+  // ---- 관리실 지도 / 보안실 CCTV (원작: 살아 있는 사람만, 통신 방해 중에는 사용 불가)
+  canUseMonitor(p, spot) {
+    if (!this.isPlaying) return ERR.WRONG_PHASE;
+    if (!spot) return ERR.INVALID_TARGET;
+    if (!p.inGame || !p.alive || p.inVent || p.activeTask) return ERR.NOT_ALLOWED;
+    if (this.sabotage.commsDown) return ERR.COMMS_DOWN;
+    if (Math.hypot(p.x - spot.x, p.y - spot.y) > USE_RANGE) return ERR.OUT_OF_RANGE;
+    return null;
+  }
+
+  /** 관리실 지도: 방마다 사람(환기구 안 제외)과 시체 수만 보낸다. 누가 어디 있는지는 보내지 않는다 */
+  onAdmin(p) {
+    const err = this.canUseMonitor(p, this.map.adminTable);
+    if (err) return err;
+    const rooms = {};
+    const add = (x, y) => { const r = this.map.roomAt(x, y); if (r && r !== 'Hallway') rooms[r] = (rooms[r] ?? 0) + 1; };
+    for (const o of this.inGamePlayers) if (o.alive && !o.removed && !o.inVent) add(o.x, o.y);
+    for (const b of this.bodies.values()) add(b.x, b.y);
+    this.send(p, { t: 'adminMap', rooms });
+    return null;
+  }
+
+  onCams(p, on) {
+    if (!on) {
+      if (p.watchingCams) { p.watchingCams = false; this.markDirty(); }
+      return null;
+    }
+    const err = this.canUseMonitor(p, this.map.camsConsole);
+    if (err) return err;
+    p.watchingCams = true;
+    p.inputQueue = [];
+    p.moving = false;
+    this.markDirty();
+    return null;
+  }
+
+  /** 감시 카메라 중 하나가 이 점을 비추는가 */
+  camSees(x, y) {
+    return this.map.cameras.some((c) => Math.hypot(x - c.vx, y - c.vy) <= CAM_RADIUS && !this.world.lineBlocked(c.vx, c.vy, x, y));
+  }
+
+  watchesCams(viewer) {
+    return viewer.watchingCams && this.isPlaying && !this.sabotage.commsDown;
+  }
+
   // ---- 사보타주
   onSabotage(p, kind, roomName) {
     if (!this.isPlaying) return ERR.WRONG_PHASE;
@@ -699,10 +749,18 @@ export class Room {
   }
 
   // ---------------------------------------------------------------- 승패
-  checkWinNow() {
-    if (this.practice) return; // 연습 모드는 승패로 끝나지 않는다 (원작 자유 플레이)
-    if (!this.inGamePhase() || this.phase === PHASES.RESULT || this.phase === PHASES.STARTING) return;
+  /** 승리 판정. 연습 모드는 사람이 고른 역할로 이룰 수 있는 조건만 본다 (임포스터가 없는 승무원 연습이 바로 끝나지 않게) */
+  winNow() {
     const win = checkWin(this.inGamePlayers, this.taskProgress());
+    if (!this.practice) return win;
+    if (this.settings.practiceRole === ROLES.IMPOSTOR) return win?.reason === 'crew_outnumbered' ? win : null;
+    const { done, total } = this.taskProgress();
+    return total > 0 && done >= total ? { winner: 'crew', reason: 'tasks' } : null;
+  }
+
+  checkWinNow() {
+    if (!this.inGamePhase() || this.phase === PHASES.RESULT || this.phase === PHASES.STARTING) return;
+    const win = this.winNow();
     if (win) this.endGame(win.winner, win.reason);
   }
 
@@ -753,7 +811,7 @@ export class Room {
           break;
         case PHASES.VOTING: this.endVoting(); break;
         case PHASES.RESULT: {
-          const win = this.practice ? null : checkWin(this.inGamePlayers, this.taskProgress());
+          const win = this.winNow();
           if (win) this.endGame(win.winner, win.reason); else this.resumePlaying();
           break;
         }
@@ -781,8 +839,11 @@ export class Room {
       if (!processed) p.moving = false;
     }
 
-    // 3) 사보타주 타이머
+    // 3) 사보타주 타이머, CCTV 보기 중단 (죽거나 회의·게임 종료)
     if (this.isPlaying) this.sabotage.tick(now);
+    for (const p of this.players.values()) {
+      if (p.watchingCams && (!this.isPlaying || !p.alive || p.removed || !p.connected)) { p.watchingCams = false; this.markDirty(); }
+    }
 
     // 4) 연결 끊긴 플레이어 정리
     const grace = this.phase === PHASES.LOBBY ? TIMINGS.disconnectGraceLobbyMs : TIMINGS.disconnectGraceGameMs;
@@ -812,6 +873,7 @@ export class Room {
     const viewerGhost = viewer.inGame && !viewer.alive;
     if (target.inGame && !target.alive) return viewerGhost; // 유령은 유령에게만 보인다
     if (viewerGhost || this.isMeeting) return true;
+    if (this.watchesCams(viewer) && this.camSees(target.x, target.y)) return true;
     return this.canSeePoint(viewer, target.x, target.y);
   }
 
@@ -835,7 +897,7 @@ export class Room {
       const newBodies = [];
       const seenBodies = new Set();
       for (const b of this.bodies.values()) {
-        if (!(viewer.inGame && !viewer.alive) && !this.canSeePoint(viewer, b.x, b.y)) continue;
+        if (!(viewer.inGame && !viewer.alive) && !this.canSeePoint(viewer, b.x, b.y) && !(this.watchesCams(viewer) && this.camSees(b.x, b.y))) continue;
         seenBodies.add(b.id);
         if (!v.bodies.has(b.id)) { v.bodies.add(b.id); newBodies.push([b.id, Math.round(b.x), Math.round(b.y), b.color, b.playerId]); }
       }
@@ -887,6 +949,7 @@ export class Room {
         killReadyAt: p.role === ROLES.IMPOSTOR ? p.killReadyAt : 0,
         emergencyLeft: p.emergencyLeft, emergencyReadyAt: this.emergencyReadyAt ?? 0,
         inVent: p.inVent,
+        watchingCams: !!p.watchingCams,
         activeTask: p.activeTask ? { defId: p.activeTask.defId, spotId: p.activeTask.spotId } : null,
         // 통신 방해 중에는 원작처럼 미션 목록을 숨긴다
         tasks: commsDown ? null : p.tasks.map((t) => ({ defId: t.defId, step: t.step, steps: t.spots.length, spot: t.done ? null : t.spots[t.step], done: t.done })),
@@ -899,6 +962,8 @@ export class Room {
       msg.taskBar = commsDown || this.settings.taskBarUpdates === 'never' ? null : (showBar ? this.taskProgress() : this.lastBar ?? null);
       if (showBar && !commsDown) this.lastBar = this.taskProgress();
       msg.sabotage = this.sabotage.publicState();
+      // 원작: 누군가 CCTV 를 보고 있으면 모든 카메라에 빨간 불이 깜빡인다 (누가 보는지는 알려 주지 않는다)
+      msg.camsInUse = this.isPlaying && [...this.players.values()].some((o) => o.watchingCams);
       if (this.meeting) {
         msg.meeting = {
           callerId: this.meeting.callerId, reason: this.meeting.reason, bodyColor: this.meeting.bodyColor,

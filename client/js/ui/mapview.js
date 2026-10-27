@@ -1,6 +1,8 @@
-// 지도: 맵별 미니맵 위에 내 위치·미션 표시. 임포스터는 사보타주 지도로 사용
+// 지도: 맵별 미니맵 위에 내 위치·미션 표시. 임포스터는 사보타주 지도로 사용.
+// 관리실 탁자에서 열면(admin) 원작처럼 방마다 사람 수만큼 아이콘을 보여 준다 (서버가 1초마다 방별 인원만 보내 줌)
 import { h, toast, errorText } from './dom.js';
-import { PHASES, ROLES, COLORS } from '../../shared/constants.js';
+import { PHASES, ROLES, COLORS, USE_RANGE } from '../../shared/constants.js';
+import { crewIcon } from '../game/recolor.js';
 import { ROOM_NAMES_KO } from '../../shared/tasks.js';
 import { play } from '../audio.js';
 
@@ -33,6 +35,8 @@ export class MapView {
     this.el = h('div', { class: 'mapview hidden', onclick: (e) => { if (e.target === this.el) this.close(); } }, this.wrap);
     root.append(this.el);
     this.timer = null;
+    this.adminRooms = null;
+    net.on('adminMap', (m) => { this.adminRooms = m.rooms; if (this.mode === 'admin') this.render(); });
     store.subscribe(() => { if (this.mode) this.render(); });
   }
 
@@ -44,9 +48,17 @@ export class MapView {
     this.mode = mode;
     this.el.classList.remove('hidden');
     this.el.classList.toggle('sabotage', mode === 'sabotage');
+    this.el.classList.toggle('admin', mode === 'admin');
     this.render();
     clearInterval(this.timer);
     this.timer = setInterval(() => this.render(), 250);
+    clearInterval(this.adminTimer);
+    if (mode === 'admin') {
+      this.adminRooms = null;
+      const poll = () => this.net.request('admin', {}).then((r) => { if (!r.ok && r.error !== 'COMMS_DOWN') { toast(errorText(r.error), 'error'); this.close(); } });
+      poll();
+      this.adminTimer = setInterval(poll, 1000);
+    }
   }
 
   toggle(mode) {
@@ -54,6 +66,7 @@ export class MapView {
   }
 
   close() {
+    clearInterval(this.adminTimer);
     this.mode = null;
     this.builtFor = null;
     clearInterval(this.timer);
@@ -105,6 +118,24 @@ export class MapView {
     const items = [];
     const toMap = this.toMap;
     const you = st.you;
+    if (this.mode === 'admin') {
+      // 탁자에서 멀어지면 닫는다 (원작)
+      const t = this.store.map.adminTable;
+      if (!t || Math.hypot(this.store.me.x - t.x, this.store.me.y - t.y) > USE_RANGE * 1.3 || !you?.alive) { this.close(); return; }
+      if (st.sabotage?.active?.kind === 'comms') {
+        items.push(h('div', { class: 'admin-static' }, '통신 방해 중'));
+      } else {
+        for (const r of this.store.map.rooms) {
+          const n = this.adminRooms?.[r.name] ?? 0;
+          if (!n) continue;
+          const [x0, y0, x1, y1] = r.rect;
+          const icons = Array.from({ length: n }, () => h('img', { src: crewIcon(7), alt: '' }));
+          items.push(h('div', { class: 'admin-icons', style: toMap((x0 + x1) / 2, (y0 + y1) / 2 + 10) }, ...icons));
+        }
+      }
+      this.dynamic.replaceChildren(...items);
+      return;
+    }
     const commsDown = st.sabotage?.active?.kind === 'comms';
     if (this.mode === 'map' && you?.tasks && !commsDown && !you.fake) {
       for (const t of you.tasks) {

@@ -4,6 +4,7 @@ import { visibilityPolygon } from './vision.js';
 import { dirFromKeys, dirFromVector, DIR_NONE } from '../../shared/movement.js';
 import {
   PHASES, ROLES, USE_RANGE, REPORT_RANGE, VENT_RANGE, KILL_DISTANCES, VISION_BASE,
+  CAM_RADIUS,
 } from '../../shared/constants.js';
 import { play } from '../audio.js';
 
@@ -42,6 +43,9 @@ export class GameScene extends Phaser.Scene {
 
     // 미션 위치 표시 (내 미션의 현재 단계만)
     this.taskMarkers = this.add.graphics().setDepth(5);
+    // 감시 카메라 불빛: 누군가 CCTV 를 보는 동안 빨갛게 깜빡인다 (원작)
+    this.camLights = this.add.graphics().setDepth(-8);
+    this.camViews = null;
 
     // 시체와 캐릭터는 한 컨테이너에 넣어 시야 마스크를 한 번만 적용한다
     this.actors = this.add.container(0, 0).setDepth(10);
@@ -112,6 +116,7 @@ export class GameScene extends Phaser.Scene {
 
   // ------------------------------------------------------------------ 입력
   inputDir() {
+    if (this.camViews) return DIR_NONE; // CCTV 를 보는 동안에는 움직이지 않는다
     // 자동 테스트용 입력 주입 (평소에는 사용되지 않음)
     if (typeof window.__inputOverride === 'function') { const d = window.__inputOverride(); if (d !== undefined) return d; }
     if (this.ctx.hud?.typing?.()) return DIR_NONE;
@@ -257,6 +262,7 @@ export class GameScene extends Phaser.Scene {
 
     // 미션 표시와 상호작용 대상
     this.drawTaskMarkers(st);
+    this.drawCamLights(st);
     this.targets = this.computeTargets(st);
     this.ctx.hud?.setTargets(this.targets);
     this.ctx.lobby?.setTargets(this.targets);
@@ -302,8 +308,45 @@ export class GameScene extends Phaser.Scene {
     this.fog.setVisible(true);
   }
 
-  /** 시야 다각형 안에 있는가 (발 위치 또는 몸 중심) */
+  /**
+   * 보안실 CCTV: 화면 가운데에 2×2 로 카메라 4대를 띄운다. 칸의 화면 좌표를 돌려준다 (DOM 테두리용)
+   * 주 카메라는 숨기고, 시야 안개·조이스틱·미션 표시는 CCTV 화면에 그리지 않는다
+   */
+  startCams(cams) {
+    this.stopCams();
+    const W = this.scale.width, H = this.scale.height, gap = 10;
+    let cw = Math.min(W * 0.94, 1000) / 2 - gap / 2;
+    let ch = cw * 0.62;
+    if (ch * 2 + gap > H * 0.86) { ch = (H * 0.86 - gap) / 2; cw = ch / 0.62; }
+    const x0 = (W - (cw * 2 + gap)) / 2, y0 = (H - (ch * 2 + gap)) / 2;
+    const rects = cams.slice(0, 4).map((c, i) => ({ x: Math.round(x0 + (i % 2) * (cw + gap)), y: Math.round(y0 + Math.floor(i / 2) * (ch + gap)), w: Math.round(cw), h: Math.round(ch), cam: c }));
+    this.camViews = rects.map((r) => {
+      const cam = this.cameras.add(r.x, r.y, r.w, r.h).setZoom(r.w / (CAM_RADIUS * 2.3)).setBackgroundColor('#000000');
+      cam.centerOn(r.cam.vx, r.cam.vy);
+      cam.ignore([this.fog, this.joyGfx, this.taskMarkers]);
+      return cam;
+    });
+    this.cameras.main.setVisible(false);
+    return rects;
+  }
+
+  stopCams() {
+    if (!this.camViews) return;
+    for (const c of this.camViews) this.cameras.remove(c);
+    this.camViews = null;
+    this.cameras.main.setVisible(true);
+  }
+
+  drawCamLights(st) {
+    const g = this.camLights;
+    g.clear();
+    if (!st.camsInUse || st.phase !== PHASES.PLAYING || Math.floor(this.time.now / 500) % 2) return;
+    for (const c of this.ctx.store.map.cameras) g.fillStyle(0xff2020, 0.95).fillCircle(c.x + 4, c.y + 1, 4);
+  }
+
+  /** 시야 다각형 안에 있는가 (발 위치 또는 몸 중심). CCTV 를 보는 동안에는 서버가 보내 준 사람은 모두 그린다 */
   isVisible(x, y) {
+    if (this.camViews) return true;
     const poly = this.visionPoly;
     if (!poly) return true;
     return pointInPoly(poly, x, y) || pointInPoly(poly, x, y - BODY_CENTER);
@@ -317,7 +360,7 @@ export class GameScene extends Phaser.Scene {
     const t = this.time.now / 400;
     // 원작: 사용할 수 있는 거리에 들어온 미션 콘솔·수리 장치·비상 버튼은 노란 테두리로 빛난다
     const use = this.targets?.use;
-    const hot = use?.kind === 'task' ? use.spot : use?.kind === 'fix' ? use.console : use?.kind === 'emergency' ? this.ctx.store.map.emergency : null;
+    const hot = use?.kind === 'task' || use?.kind === 'admin' || use?.kind === 'cams' ? use.spot : use?.kind === 'fix' ? use.console : use?.kind === 'emergency' ? this.ctx.store.map.emergency : null;
     if (hot) {
       g.lineStyle(10, 0xffe14d, 0.25).strokeCircle(hot.x, hot.y, 30);
       g.lineStyle(4, 0xffe14d, 1).strokeCircle(hot.x, hot.y, 30);
@@ -367,6 +410,9 @@ export class GameScene extends Phaser.Scene {
         if (spot && near(spot.x, spot.y, USE_RANGE)) { out.use = { kind: 'task', task: t, spot }; break; }
       }
     }
+    // 관리실 지도, 보안실 CCTV (원작: 임포스터도 쓸 수 있다)
+    if (!out.use && you.alive && map.adminTable && near(map.adminTable.x, map.adminTable.y, USE_RANGE)) out.use = { kind: 'admin', spot: map.adminTable };
+    if (!out.use && you.alive && map.camsConsole && near(map.camsConsole.x, map.camsConsole.y, USE_RANGE)) out.use = { kind: 'cams', spot: map.camsConsole };
     // 비상 버튼
     const e = map.emergency;
     if (!out.use && you.alive && near(e.x, e.y, e.range)) out.use = { kind: 'emergency' };

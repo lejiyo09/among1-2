@@ -199,6 +199,10 @@ export const objects = {
     { name: 'comms_office', type: 'console', ...W(13.67, 19.35), props: { sabotage: 'comms' } },
   ],
 
+  // 관리실 지도 탁자 (원작 AdminMapConsole, 탁자 아래쪽에서 사용). 미라 HQ 에는 CCTV 대신 출입 기록이 있다 (미구현)
+  monitors: [{ name: 'AdminMap', type: 'admin', x: 2655, y: 945 }],
+  cameras: [],
+
   // 원작 미라 HQ 에는 닫을 수 있는 문이 없다
   doors: [],
 };

@@ -6,6 +6,7 @@ import { play, loop } from '../audio.js';
 import { openTask, closeTaskPanel, taskPanelOpen } from '../tasks/index.js';
 import { openFix, closeFixPanel } from '../sabotage/index.js';
 import { MapView } from './mapview.js';
+import { Cams } from './cams.js';
 
 const SABO_NAMES = { reactor: '원자로 붕괴', o2: '산소 고갈', lights: '전등 고장', comms: '통신 방해' };
 
@@ -69,6 +70,7 @@ export class Hud {
     root.append(this.el);
     root.append(h('div', { class: 'rotate-hint' }, '📱 가로 화면으로 돌리면 더 넓게 보입니다'));
     this.mapView = new MapView({ net, store, root });
+    this.cams = new Cams({ net, store, root });
 
     store.subscribe(() => this.render());
     net.on('task', (m) => this.onTaskBegin(m));
@@ -257,6 +259,10 @@ export class Hud {
       this.net.request('taskStart', { taskId: u.task.defId }).then((r) => { if (!r.ok) toast(errorText(r.error), 'error'); });
     } else if (u.kind === 'fix') {
       openFix({ net: this.net, store: this.store, console: u.console });
+    } else if (u.kind === 'admin') {
+      if (this.mapView.mode === 'admin') this.mapView.close(); else { play('uiSelect'); this.mapView.open('admin'); }
+    } else if (u.kind === 'cams') {
+      this.cams.show();
     }
   }
 
@@ -278,7 +284,7 @@ export class Hud {
   }
 
   onKey(e) {
-    if (this.typing() || !this.visible) return;
+    if (this.typing() || !this.visible || this.cams.open) return;
     const k = e.key.toLowerCase();
     if (k === 'tab') { e.preventDefault(); this.mapView.toggle('map'); return; }
     if (k === 'escape') { this.mapView.close(); return; }

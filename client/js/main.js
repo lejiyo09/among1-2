@@ -68,6 +68,7 @@ async function boot() {
     banner: false,
   });
   hud.scene = scene;
+  hud.cams.scene = scene;
   window.__game = { net, store, scene, hud, meeting, overlays }; // 디버깅·자동 테스트용
 
   // 첫 입력에서 소리 켜기
