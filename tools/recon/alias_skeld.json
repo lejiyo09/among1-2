@@ -27,5 +27,7 @@
 "comms_left_tv": "comms_tvs",
 "comms_right_tv": "comms_tvs",
 "StabilizeSteeringConsole": "panel_nav",
-"ChartCourseConsole": "Panel_pathing"
+"ChartCourseConsole": "Panel_pathing",
+"SwipeCardConsole": "panel_card",
+"MapRoomConsole": "panel_map"
 }

@@ -141,3 +141,12 @@ test(`${mapId}: 공통·긴·짧은 미션이 모두 있고 단계별 지점이 
   for (const t of map.tasks) assert.ok(used.has(t.taskType), `${t.id} (${t.taskType}) 를 쓰는 미션이 없음`);
 });
 }
+
+// 원작 스켈드의 주요 통로가 막히지 않았는지 (방 도달 검사는 다른 길로 돌아가도 통과하므로 따로 본다)
+test('skeld: 식당 → 무기고, 식당 → 의무실 통로가 뚫려 있다', () => {
+  const map = loadMap('skeld');
+  const w = new CollisionWorld(map);
+  for (let x = 2400; x <= 2680; x += 8) assert.ok(w.circleFree(x, 495, PLAYER_RADIUS), `식당→무기고 통로 막힘 (${x},495)`);
+  for (let x = 1480; x >= 1300; x -= 8) assert.ok(w.circleFree(x, 495, PLAYER_RADIUS), `식당→의무실 쪽 통로 막힘 (${x},495)`);
+});
+

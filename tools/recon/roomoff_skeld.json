@@ -2,5 +2,10 @@
 "Electrical/Ground/electric_frontset": [
 0,
 25
+],
+"Cafeteria/Ground/EmergencyConsole": [
+6,
+0,
+1.3
 ]
 }

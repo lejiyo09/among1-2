@@ -39,7 +39,7 @@ def tex(f):
     if f not in cache: cache[f]=Image.open(T+f).convert('RGBA')
     return cache[f]
 def sprite_img(name):
-    s=idx[name][0]
+    s=next((x for x in idx[name] if x['tex'] in texmap), idx[name][0])  # 같은 이름이 여러 맵에 있으면 스켈드 텍스처 쪽
     # 한 장짜리 텍스처: 이름이 같은 PNG
     for cand in (name+'.png', name+'_0.png'):
         if cand in pngs:
@@ -97,7 +97,9 @@ for n,im,s in items:
     ppu=s['ppu'] or 100
     room=n['path'].split('/')[2] if n['path'].count('/')>=2 else ''
     fdx,fdy,fs=(ROOMFIT[room][:3] if room in ROOMFIT else (0,0,1.0))
-    sw=max(1,int(im.size[0]*abs(n['sx'])*K*100/ppu*fs)); sh=max(1,int(im.size[1]*abs(n['sy'])*K*100/ppu*fs))
+    # 개별 배율 보정 (원작 스크린샷과 비교해 정함): roomoff 의 세 번째 값
+    ns=next((v[2] for k,v in ROOMOFF.items() if '/' in k and n['path'].endswith(k) and len(v)>2), 1.0)
+    sw=max(1,int(im.size[0]*abs(n['sx'])*K*100/ppu*fs*ns)); sh=max(1,int(im.size[1]*abs(n['sy'])*K*100/ppu*fs*ns))
     img=im.resize((sw,sh),Image.LANCZOS)
     if n['sx']<0: img=img.transpose(Image.FLIP_LEFT_RIGHT)
     if n['sy']<0: img=img.transpose(Image.FLIP_TOP_BOTTOM)
@@ -105,7 +107,7 @@ for n,im,s in items:
     piv=s['pivot'] or {'m_X':0.5,'m_Y':0.5}
     room=n['path'].split('/')[2] if n['path'].count('/')>=2 else ''
     # 보정: 노드 경로 끝이 일치하는 항목이 있으면 그것, 없으면 방 단위
-    dx,dy=next((v for k,v in ROOMOFF.items() if '/' in k and n['path'].endswith(k)), ROOMOFF.get(room,[0,0]))
+    dx,dy=next((v[:2] for k,v in ROOMOFF.items() if '/' in k and n['path'].endswith(k)), ROOMOFF.get(room,[0,0])[:2])
     rn=ROOMNODE.get(room,n); cx,cy=AX*rn['x']+BX, AY*rn['y']+BY
     px=cx+(AX*n['x']+BX-cx)*fs+fdx+OX+dx; py=cy+(AY*n['y']+BY-cy)*fs+fdy+OY+dy
     ox_,oy_=int(px-piv['m_X']*img.size[0]),int(py-(1-piv['m_Y'])*img.size[1])
